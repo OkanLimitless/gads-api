@@ -55,5 +55,26 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   }
+  
+  /* Fallback styles in case CSS variables don't load */
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background-color: #ffffff;
+    color: #000000;
+  }
+  
+  #__next {
+    min-height: 100vh;
+  }
+}
+
+/* Ensure content is visible even if Tailwind doesn't load */
+.fallback-visible {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
