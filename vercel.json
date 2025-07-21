@@ -1,16 +1,6 @@
 {
-  "name": "adgenius-creator",
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "env": {
-    "GOOGLE_ADS_DEVELOPER_TOKEN": "@google_ads_developer_token",
-    "GOOGLE_ADS_CLIENT_ID": "@google_ads_client_id", 
-    "GOOGLE_ADS_CLIENT_SECRET": "@google_ads_client_secret",
-    "GOOGLE_ADS_REFRESH_TOKEN": "@google_ads_refresh_token"
-  }
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs"
 }
