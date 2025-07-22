@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { BarChart3, Settings, Target, TrendingUp, Users, ArrowLeft } from 'lucide-react'
+import { BarChart3, Settings, Target, TrendingUp, Users, ArrowLeft, Link2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
 // Import components dynamically to avoid SSR issues
 import dynamic from 'next/dynamic'
@@ -23,6 +24,11 @@ const AdGroupManager = dynamic(() => import('@/components/AdGroupManager'), {
 const KeywordManager = dynamic(() => import('@/components/KeywordManager'), {
   ssr: false,
   loading: () => <div className="flex justify-center p-8">Loading keywords...</div>
+})
+
+const PerformanceReports = dynamic(() => import('@/components/PerformanceReports'), {
+  ssr: false,
+  loading: () => <div className="flex justify-center p-8">Loading performance data...</div>
 })
 
 interface Campaign {
@@ -52,12 +58,30 @@ interface Keyword {
   maxCpc: number
 }
 
+interface AdAccount {
+  id: string
+  name: string
+  currency: string
+  timeZone: string
+  status: string
+  canManageCampaigns: boolean
+  testAccount: boolean
+}
+
 export default function Dashboard() {
+  const searchParams = useSearchParams()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [adGroups, setAdGroups] = useState<AdGroup[]>([])
   const [keywords, setKeywords] = useState<Keyword[]>([])
+  const [accounts, setAccounts] = useState<AdAccount[]>([])
+  const [selectedAccount, setSelectedAccount] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [accountsLoading, setAccountsLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [authStatus, setAuthStatus] = useState<'none' | 'authenticated' | 'error'>('none')
+  const [accessToken, setAccessToken] = useState<string>('')
+  const [refreshToken, setRefreshToken] = useState<string>('')
+  const [apiSource, setApiSource] = useState<'mock_data' | 'google_ads_api'>('mock_data')
 
   useEffect(() => {
     setMounted(true)
@@ -65,17 +89,72 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (mounted) {
+      // Check for OAuth callback parameters
+      const authSuccess = searchParams.get('auth_success')
+      const error = searchParams.get('error')
+      const accessTokenParam = searchParams.get('access_token')
+      const refreshTokenParam = searchParams.get('refresh_token')
+
+      if (error) {
+        setAuthStatus('error')
+        console.error('OAuth error:', error)
+      } else if (authSuccess && accessTokenParam && refreshTokenParam) {
+        setAccessToken(accessTokenParam)
+        setRefreshToken(refreshTokenParam)
+        setAuthStatus('authenticated')
+        fetchAccounts(refreshTokenParam)
+        
+        // Clean up URL parameters
+        const url = new URL(window.location.href)
+        url.searchParams.delete('auth_success')
+        url.searchParams.delete('access_token')
+        url.searchParams.delete('refresh_token')
+        url.searchParams.delete('error')
+        window.history.replaceState({}, '', url.toString())
+      } else {
+        fetchData()
+      }
+    }
+  }, [mounted, searchParams])
+
+  useEffect(() => {
+    if (selectedAccount && refreshToken) {
       fetchData()
     }
-  }, [mounted])
+  }, [selectedAccount, refreshToken])
+
+  const fetchAccounts = async (token: string) => {
+    setAccountsLoading(true)
+    try {
+      const response = await fetch(`/api/accounts?refresh_token=${encodeURIComponent(token)}`)
+      const data = await response.json()
+      
+      if (data.accounts) {
+        setAccounts(data.accounts)
+        // Auto-select first account that can manage campaigns
+        const firstManageableAccount = data.accounts.find((acc: AdAccount) => acc.canManageCampaigns)
+        if (firstManageableAccount) {
+          setSelectedAccount(firstManageableAccount.id)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error)
+    } finally {
+      setAccountsLoading(false)
+    }
+  }
 
   const fetchData = async () => {
     setLoading(true)
     try {
+      const params = new URLSearchParams()
+      if (selectedAccount) params.set('customerId', selectedAccount)
+      if (refreshToken) params.set('refresh_token', refreshToken)
+
       const [campaignsRes, adGroupsRes, keywordsRes] = await Promise.all([
-        fetch('/api/campaigns'),
-        fetch('/api/ad-groups'),
-        fetch('/api/keywords')
+        fetch(`/api/campaigns?${params.toString()}`),
+        fetch(`/api/ad-groups?${params.toString()}`),
+        fetch(`/api/keywords?${params.toString()}`)
       ])
 
       const campaignsData = await campaignsRes.json()
@@ -85,11 +164,20 @@ export default function Dashboard() {
       setCampaigns(campaignsData.campaigns || [])
       setAdGroups(adGroupsData.adGroups || [])
       setKeywords(keywordsData.keywords || [])
+      
+      // Set API source based on response
+      if (campaignsData.source) {
+        setApiSource(campaignsData.source)
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOAuthLogin = () => {
+    window.location.href = '/api/auth/google'
   }
 
   if (!mounted) {
@@ -131,6 +219,17 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
+              {authStatus === 'authenticated' ? (
+                <div className="flex items-center space-x-2 text-green-600">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-sm">Connected</span>
+                </div>
+              ) : (
+                <Button onClick={handleOAuthLogin} variant="outline" size="sm">
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Connect Google Ads
+                </Button>
+              )}
               <Button variant="outline" size="sm">
                 <Settings className="h-4 w-4" />
               </Button>
@@ -147,10 +246,72 @@ export default function Dashboard() {
               <p className="text-gray-600 mt-1">Manage your Google Ads campaigns, ad groups, and keywords</p>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-500">Demo Account</div>
-              <div className="text-sm font-medium text-blue-600">Using Test API Token</div>
+              <div className="text-sm text-gray-500">
+                Data Source: {apiSource === 'google_ads_api' ? 'Google Ads API' : 'Demo Mode'}
+              </div>
+              {authStatus === 'authenticated' ? (
+                <div className="text-sm font-medium text-green-600">Real API Connected</div>
+              ) : (
+                <div className="text-sm font-medium text-blue-600">Using Demo Data</div>
+              )}
             </div>
           </div>
+
+          {/* Account Selection */}
+          {authStatus === 'authenticated' && accounts.length > 0 && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center text-blue-900">
+                  <Target className="h-5 w-5 mr-2" />
+                  Select Google Ads Account
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3">
+                  {accountsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      <span>Loading accounts...</span>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {accounts.map((account) => (
+                        <div
+                          key={account.id}
+                          className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                            selectedAccount === account.id
+                              ? 'border-blue-500 bg-blue-100'
+                              : 'border-gray-200 bg-white hover:border-blue-300'
+                          }`}
+                          onClick={() => setSelectedAccount(account.id)}
+                        >
+                          <div className="font-medium">{account.name}</div>
+                          <div className="text-sm text-gray-500">
+                            ID: {account.id} • {account.currency} • {account.testAccount ? 'Test' : 'Live'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* OAuth Error */}
+          {authStatus === 'error' && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4">
+                <div className="flex items-center text-red-800">
+                  <AlertCircle className="h-5 w-5 mr-2" />
+                  <span>Failed to connect to Google Ads. Please try again.</span>
+                  <Button onClick={handleOAuthLogin} variant="outline" size="sm" className="ml-4">
+                    Retry Connection
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Overview Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -242,6 +403,9 @@ export default function Dashboard() {
               <TabsTrigger value="keywords" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                 Keywords
               </TabsTrigger>
+              <TabsTrigger value="performance" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                Performance
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="campaigns">
@@ -260,6 +424,8 @@ export default function Dashboard() {
                     campaigns={campaigns} 
                     onCampaignsChange={setCampaigns}
                     loading={loading}
+                    customerId={selectedAccount}
+                    refreshToken={refreshToken}
                   />
                 </CardContent>
               </Card>
@@ -304,6 +470,27 @@ export default function Dashboard() {
                     adGroups={adGroups}
                     onKeywordsChange={setKeywords}
                     loading={loading}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="performance">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
+                    Performance Reports
+                  </CardTitle>
+                  <CardDescription>
+                    Analyze campaign performance with detailed metrics and insights
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PerformanceReports 
+                    customerId={selectedAccount}
+                    refreshToken={refreshToken}
+                    campaigns={campaigns}
                   />
                 </CardContent>
               </Card>

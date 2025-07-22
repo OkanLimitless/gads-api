@@ -12,9 +12,11 @@ interface CampaignManagerProps {
   campaigns: Campaign[]
   onCampaignsChange: (campaigns: Campaign[]) => void
   loading: boolean
+  customerId?: string
+  refreshToken?: string
 }
 
-export default function CampaignManager({ campaigns, onCampaignsChange, loading }: CampaignManagerProps) {
+export default function CampaignManager({ campaigns, onCampaignsChange, loading, customerId, refreshToken }: CampaignManagerProps) {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -34,7 +36,8 @@ export default function CampaignManager({ campaigns, onCampaignsChange, loading 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          customerId: '123-456-7890',
+          customerId: customerId || '123-456-7890',
+          refreshToken,
           ...formData,
           budget: parseFloat(formData.budget)
         }),
