@@ -70,13 +70,21 @@ export function getOAuthUrl(state?: string): string {
   // Determine the correct redirect URI based on environment
   let redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI
   if (!redirectUri) {
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+    let baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+    
+    // Handle Vercel URL - add https:// if missing
+    if (baseUrl && !baseUrl.startsWith('http')) {
+      baseUrl = `https://${baseUrl}`
+    }
+    
     if (baseUrl) {
       redirectUri = `${baseUrl}/api/auth/google/callback`
     } else {
       redirectUri = 'http://localhost:3000/api/auth/google/callback'
     }
   }
+  
+  console.log('OAuth URL generation - using redirect URI:', redirectUri)
   
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
@@ -102,7 +110,13 @@ export async function exchangeCodeForTokens(code: string): Promise<{
   // Determine the correct redirect URI (must match the one used in getOAuthUrl)
   let redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI
   if (!redirectUri) {
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+    let baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+    
+    // Handle Vercel URL - add https:// if missing
+    if (baseUrl && !baseUrl.startsWith('http')) {
+      baseUrl = `https://${baseUrl}`
+    }
+    
     if (baseUrl) {
       redirectUri = `${baseUrl}/api/auth/google/callback`
     } else {
