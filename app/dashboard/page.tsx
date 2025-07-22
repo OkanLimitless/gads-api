@@ -92,12 +92,13 @@ export default function Dashboard() {
       // Check for OAuth callback parameters
       const authSuccess = searchParams.get('auth_success')
       const error = searchParams.get('error')
+      const errorDetails = searchParams.get('details')
       const accessTokenParam = searchParams.get('access_token')
       const refreshTokenParam = searchParams.get('refresh_token')
 
       if (error) {
         setAuthStatus('error')
-        console.error('OAuth error:', error)
+        console.error('OAuth error:', error, errorDetails)
       } else if (authSuccess && accessTokenParam && refreshTokenParam) {
         setAccessToken(accessTokenParam)
         setRefreshToken(refreshTokenParam)
@@ -110,6 +111,7 @@ export default function Dashboard() {
         url.searchParams.delete('access_token')
         url.searchParams.delete('refresh_token')
         url.searchParams.delete('error')
+        url.searchParams.delete('details')
         window.history.replaceState({}, '', url.toString())
       } else {
         fetchData()
@@ -302,9 +304,19 @@ export default function Dashboard() {
           {authStatus === 'error' && (
             <Card className="border-red-200 bg-red-50">
               <CardContent className="p-4">
-                <div className="flex items-center text-red-800">
-                  <AlertCircle className="h-5 w-5 mr-2" />
-                  <span>Failed to connect to Google Ads. Please try again.</span>
+                <div className="flex items-start text-red-800">
+                  <AlertCircle className="h-5 w-5 mr-2 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="font-semibold">Failed to connect to Google Ads</div>
+                    {searchParams.get('details') && (
+                      <div className="text-sm mt-1 text-red-700">
+                        {decodeURIComponent(searchParams.get('details') || '')}
+                      </div>
+                    )}
+                    <div className="text-sm mt-2 text-red-600">
+                      Make sure your OAuth credentials are correctly configured in Google Cloud Console.
+                    </div>
+                  </div>
                   <Button onClick={handleOAuthLogin} variant="outline" size="sm" className="ml-4">
                     Retry Connection
                   </Button>

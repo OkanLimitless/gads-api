@@ -66,7 +66,17 @@ export interface Keyword {
 // OAuth helper functions
 export function getOAuthUrl(state?: string): string {
   const scopes = 'https://www.googleapis.com/auth/adwords'
-  const redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI || `${process.env.NEXTAUTH_URL}/api/auth/google/callback`
+  
+  // Determine the correct redirect URI based on environment
+  let redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI
+  if (!redirectUri) {
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+    if (baseUrl) {
+      redirectUri = `${baseUrl}/api/auth/google/callback`
+    } else {
+      redirectUri = 'http://localhost:3000/api/auth/google/callback'
+    }
+  }
   
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
@@ -74,7 +84,8 @@ export function getOAuthUrl(state?: string): string {
     scope: scopes,
     response_type: 'code',
     access_type: 'offline',
-    prompt: 'consent',
+    prompt: 'consent', // This ensures we get a refresh token
+    include_granted_scopes: 'true',
     ...(state && { state })
   })
   
@@ -85,8 +96,21 @@ export async function exchangeCodeForTokens(code: string): Promise<{
   access_token: string
   refresh_token: string
   expires_in: number
+  token_type: string
+  scope: string
 }> {
-  const redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI || `${process.env.NEXTAUTH_URL}/api/auth/google/callback`
+  // Determine the correct redirect URI (must match the one used in getOAuthUrl)
+  let redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI
+  if (!redirectUri) {
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+    if (baseUrl) {
+      redirectUri = `${baseUrl}/api/auth/google/callback`
+    } else {
+      redirectUri = 'http://localhost:3000/api/auth/google/callback'
+    }
+  }
+  
+  console.log('Token exchange - using redirect URI:', redirectUri)
   
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -103,10 +127,19 @@ export async function exchangeCodeForTokens(code: string): Promise<{
   })
   
   if (!response.ok) {
-    throw new Error(`OAuth token exchange failed: ${response.statusText}`)
+    const errorText = await response.text()
+    console.error('OAuth token exchange failed:', response.status, errorText)
+    throw new Error(`OAuth token exchange failed: ${response.status} - ${errorText}`)
   }
   
-  return response.json()
+  const tokenData = await response.json()
+  console.log('Token exchange successful:', { 
+    hasAccessToken: !!tokenData.access_token,
+    hasRefreshToken: !!tokenData.refresh_token,
+    expiresIn: tokenData.expires_in 
+  })
+  
+  return tokenData
 }
 
 // Real Google Ads API functions
