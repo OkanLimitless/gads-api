@@ -67,7 +67,7 @@ export interface Keyword {
 export function getOAuthUrl(state?: string): string {
   const scopes = 'https://www.googleapis.com/auth/adwords'
   
-  // Determine the correct redirect URI based on environment
+  // Prioritize explicit GOOGLE_ADS_REDIRECT_URI, then NEXTAUTH_URL, then VERCEL_URL
   let redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI
   if (!redirectUri) {
     let baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
@@ -85,6 +85,11 @@ export function getOAuthUrl(state?: string): string {
   }
   
   console.log('OAuth URL generation - using redirect URI:', redirectUri)
+  console.log('Environment check:', {
+    GOOGLE_ADS_REDIRECT_URI: !!process.env.GOOGLE_ADS_REDIRECT_URI,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    VERCEL_URL: process.env.VERCEL_URL
+  })
   
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
@@ -107,7 +112,7 @@ export async function exchangeCodeForTokens(code: string): Promise<{
   token_type: string
   scope: string
 }> {
-  // Determine the correct redirect URI (must match the one used in getOAuthUrl)
+  // Prioritize explicit GOOGLE_ADS_REDIRECT_URI, then NEXTAUTH_URL, then VERCEL_URL (must match getOAuthUrl)
   let redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI
   if (!redirectUri) {
     let baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
@@ -125,6 +130,11 @@ export async function exchangeCodeForTokens(code: string): Promise<{
   }
   
   console.log('Token exchange - using redirect URI:', redirectUri)
+  console.log('Environment check:', {
+    GOOGLE_ADS_REDIRECT_URI: !!process.env.GOOGLE_ADS_REDIRECT_URI,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    VERCEL_URL: process.env.VERCEL_URL
+  })
   
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',

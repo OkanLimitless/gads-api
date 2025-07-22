@@ -2,15 +2,15 @@
 
 Follow this step-by-step guide to configure OAuth 2.0 for Google Ads API access.
 
-## 🚨 **Quick Fix for "invalid_request" Error**
+## 🚨 **Quick Fix for "redirect_uri_mismatch" Error**
 
 If you're seeing the error:
 ```
-Fout 400: invalid_request
-Details van verzoek: redirect_uri=gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app/api/auth/google/callback
+Fout 400: redirect_uri_mismatch
+Details van verzoek: redirect_uri=https://gads-846i4o3ob-johns-projects-b489a0ec.vercel.app/api/auth/google/callback
 ```
 
-**The issue**: The redirect URI is missing `https://` protocol.
+**The issue**: The redirect URI in your code doesn't match what's configured in Google Cloud Console.
 
 **The fix**: Add these exact URLs to your Google Cloud Console:
 
@@ -18,15 +18,19 @@ Details van verzoek: redirect_uri=gads-rbvflyqw7-johns-projects-b489a0ec.vercel.
 
 **Authorized JavaScript Origins:**
 ```
-https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app
+https://gads-api.vercel.app
 http://localhost:3000
 ```
 
 **Authorized Redirect URIs:**
 ```
-https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app/api/auth/google/callback
+https://gads-api.vercel.app/api/auth/google/callback
 http://localhost:3000/api/auth/google/callback
 ```
+
+**✅ Perfect!** Your Google Cloud Console is correctly configured with:
+- JavaScript Origins: `https://gads-api.vercel.app`
+- Redirect URIs: `https://gads-api.vercel.app/api/auth/google/callback`
 
 ---
 
@@ -56,7 +60,7 @@ Add these URLs to **Authorized JavaScript origins**:
 
 **For Your Current Deployment:**
 ```
-https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app
+https://gads-api.vercel.app
 ```
 
 **For Development:**
@@ -74,7 +78,7 @@ Add these URLs to **Authorized redirect URIs**:
 
 **For Your Current Deployment:**
 ```
-https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app/api/auth/google/callback
+https://gads-api.vercel.app/api/auth/google/callback
 ```
 
 **For Development:**
@@ -93,8 +97,8 @@ https://your-custom-domain.com/api/auth/google/callback
 - **App name**: AdGenius Pro
 - **User support email**: Your email
 - **App logo**: Upload your company logo (optional)
-- **App domain**: `https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app`
-- **Authorized domains**: `gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app`
+- **App domain**: `https://gads-api.vercel.app`
+- **Authorized domains**: `gads-api.vercel.app`
 - **Developer contact information**: Your email
 
 ### 3.2 Scopes
@@ -133,7 +137,7 @@ GOOGLE_ADS_CLIENT_SECRET=GOCSPX-your-client-secret-here
 
 # Vercel automatically sets VERCEL_URL, so you don't need to set NEXTAUTH_URL
 # But you can set it explicitly if needed:
-# NEXTAUTH_URL=https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app
+# NEXTAUTH_URL=https://gads-api.vercel.app
 
 NEXTAUTH_SECRET=your-random-secret-key-here
 ```
@@ -141,7 +145,7 @@ NEXTAUTH_SECRET=your-random-secret-key-here
 ## 🧪 **Step 6: Test the OAuth Flow**
 
 ### 6.1 Testing Your Current Deployment
-1. Go to `https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app/dashboard`
+1. Go to `https://gads-api.vercel.app/dashboard`
 2. Click "Connect Google Ads"
 3. Complete the OAuth flow
 4. Check for any error messages
@@ -239,13 +243,13 @@ If you encounter issues:
 ### Check Your Current Vercel URL
 Your app is currently deployed at:
 ```
-https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app
+https://gads-api.vercel.app
 ```
 
 ### Verify OAuth URLs in Console
 Check that these exact URLs are in your Google Cloud Console:
-- **JavaScript Origins**: `https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app`
-- **Redirect URIs**: `https://gads-rbvflyqw7-johns-projects-b489a0ec.vercel.app/api/auth/google/callback`
+- **JavaScript Origins**: `https://gads-api.vercel.app`
+- **Redirect URIs**: `https://gads-api.vercel.app/api/auth/google/callback`
 
 ---
 
