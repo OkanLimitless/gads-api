@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdGroups, createAdGroup } from '@/lib/google-ads'
 
+// Force dynamic rendering
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customerId') || '123-456-7890'
     const campaignId = searchParams.get('campaignId')
     
-    const adGroups = await getAdGroups(customerId, campaignId || undefined)
+    const adGroups = await getAdGroups(customerId, campaignId)
     return NextResponse.json({ adGroups })
   } catch (error) {
     console.error('Error fetching ad groups:', error)

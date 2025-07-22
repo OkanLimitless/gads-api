@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCampaigns, createCampaign, updateCampaign } from '@/lib/google-ads-client'
 import { getCampaigns as getMockCampaigns, createCampaign as createMockCampaign } from '@/lib/google-ads'
 
+// Force dynamic rendering
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)

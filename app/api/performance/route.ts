@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCampaignPerformance } from '@/lib/google-ads-client'
 
+// Force dynamic rendering
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 // Mock performance data for fallback
 const generateMockPerformance = (campaignId: string, campaignName: string, days: number = 30) => {
   const performance = []
