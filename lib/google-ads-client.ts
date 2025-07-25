@@ -596,76 +596,7 @@ export async function getCampaignPerformance(
   }
 }
 
-export async function createCampaign(
-  customerId: string, 
-  refreshToken: string, 
-  campaignData: {
-    name: string
-    budget: number
-    biddingStrategy: string
-    startDate: string
-    endDate?: string
-    campaignType?: string
-  }
-): Promise<Campaign> {
-  try {
-    const customer = googleAdsClient.Customer({
-      customer_id: customerId,
-      refresh_token: refreshToken,
-    })
 
-    // First create a campaign budget
-    const budgetOperation = {
-      create: {
-        name: `${campaignData.name} Budget`,
-        amount_micros: campaignData.budget * 1000000, // Convert to micros
-        delivery_method: 'STANDARD',
-      }
-    }
-
-    const budgetResponse = await customer.campaignBudgets.create([budgetOperation])
-    const budgetResourceName = budgetResponse.results[0].resource_name
-
-    // Then create the campaign
-    const campaignOperation = {
-      create: {
-        name: campaignData.name,
-        advertising_channel_type: campaignData.campaignType || 'SEARCH',
-        status: 'PAUSED', // Start paused for safety
-        campaign_budget: budgetResourceName,
-        start_date: campaignData.startDate.replace(/-/g, ''),
-        ...(campaignData.endDate && { end_date: campaignData.endDate.replace(/-/g, '') }),
-        bidding_strategy_type: campaignData.biddingStrategy,
-        ...(campaignData.biddingStrategy === 'MANUAL_CPC' && {
-          manual_cpc: {
-            enhanced_cpc_enabled: true
-          }
-        }),
-        ...(campaignData.biddingStrategy === 'MAXIMIZE_CLICKS' && {
-          maximize_clicks: {}
-        }),
-      }
-    }
-
-    const campaignResponse = await customer.campaigns.create([campaignOperation])
-    const campaignId = campaignResponse.results[0].resource_name.split('/')[3]
-
-    return {
-      id: campaignId,
-      name: campaignData.name,
-      status: 'PAUSED',
-      budget: campaignData.budget,
-      budgetId: budgetResourceName,
-      biddingStrategy: campaignData.biddingStrategy,
-      startDate: campaignData.startDate,
-      endDate: campaignData.endDate,
-      campaignType: campaignData.campaignType || 'SEARCH',
-    }
-  } catch (error) {
-    console.error('Error creating campaign:', error)
-    throw new Error('Failed to create campaign')
-  }
-}
 
 export async function updateCampaign(
   customerId: string,
