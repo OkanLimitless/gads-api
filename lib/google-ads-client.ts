@@ -181,13 +181,8 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
       hasDeveloperToken: !!process.env.GOOGLE_ADS_DEVELOPER_TOKEN
     })
 
-    const customer = googleAdsClient.Customer({
-      customer_id: 'none', // We don't need a specific customer ID for this call
-      refresh_token: refreshToken,
-    })
-
     console.log('📡 Calling listAccessibleCustomers...')
-    const accessibleCustomers = await customer.listAccessibleCustomers()
+    const accessibleCustomers = await googleAdsClient.listAccessibleCustomers(refreshToken)
     console.log('✅ Got accessible customers:', {
       count: accessibleCustomers.resource_names.length,
       resourceNames: accessibleCustomers.resource_names
