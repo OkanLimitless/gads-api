@@ -24,12 +24,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Get MCC ID from query params
-    const { searchParams } = new URL(request.url)
+        const { searchParams } = new URL(request.url)
     const mccId = searchParams.get('mccId')
-    
+
     if (!mccId) {
       return NextResponse.json({ error: 'MCC ID is required' }, { status: 400 })
     }
+
+    // Hidden account IDs that should be excluded from selection
+    const hiddenAccountIds = [
+      '7543640452', '1981739507', '2455272543', 
+      '2943276700', '5353988239', '5299881560', '6575141691'
+    ]
 
     console.log(`🏢 Fetching client accounts for MCC: ${mccId}`)
 
@@ -87,13 +93,27 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log(`🎯 Returning ${clientAccounts.length} client accounts for MCC ${mccId}`)
+    console.log(`✅ Found ${clientAccounts.length} total client accounts for MCC ${mccId}`)
+    
+    // Filter out hidden accounts
+    const visibleClientAccounts = clientAccounts.filter(account => 
+      !hiddenAccountIds.includes(account.id)
+    )
+    
+    const hiddenCount = clientAccounts.length - visibleClientAccounts.length
+    if (hiddenCount > 0) {
+      console.log(`🙈 Filtered out ${hiddenCount} hidden accounts`)
+      console.log(`👁️ Showing ${visibleClientAccounts.length} visible accounts`)
+    }
+
+    console.log(`🎯 Returning ${visibleClientAccounts.length} visible client accounts for MCC ${mccId}`)
 
     return NextResponse.json({
       success: true,
       mccId,
-      clientAccounts,
-      totalClients: clientAccounts.length
+      clientAccounts: visibleClientAccounts,
+      totalClients: visibleClientAccounts.length,
+      hiddenClients: hiddenCount
     })
 
   } catch (error) {
