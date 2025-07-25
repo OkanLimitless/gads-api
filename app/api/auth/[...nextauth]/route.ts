@@ -19,8 +19,26 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, account, profile }) {
+      console.log('🔄 JWT Callback:', {
+        hasAccount: !!account,
+        hasToken: !!token,
+        accountProvider: account?.provider,
+        accountType: account?.type,
+        tokenHasRefresh: !!token.refreshToken,
+        tokenHasAccess: !!token.accessToken
+      })
+
       // Persist the OAuth access_token and refresh_token to the token right after signin
       if (account) {
+        console.log('💾 Storing new tokens from account:', {
+          provider: account.provider,
+          type: account.type,
+          hasAccessToken: !!account.access_token,
+          hasRefreshToken: !!account.refresh_token,
+          scope: account.scope,
+          expiresAt: account.expires_at
+        })
+        
         token.accessToken = account.access_token
         token.refreshToken = account.refresh_token
         token.accessTokenExpires = account.expires_at
@@ -28,13 +46,23 @@ export const authOptions: NextAuthOptions = {
 
       // Return previous token if the access token has not expired yet
       if (Date.now() < (token.accessTokenExpires as number) * 1000) {
+        console.log('✅ Token still valid, returning existing token')
         return token
       }
 
       // Access token has expired, try to update it
+      console.log('🔄 Token expired, attempting refresh...')
       return refreshAccessToken(token)
     },
     async session({ session, token }) {
+      console.log('📋 Session Callback:', {
+        hasSession: !!session,
+        hasToken: !!token,
+        tokenHasRefresh: !!token.refreshToken,
+        tokenHasAccess: !!token.accessToken,
+        tokenError: token.error
+      })
+
       session.accessToken = token.accessToken as string
       session.refreshToken = token.refreshToken as string
       session.error = token.error as string
@@ -46,10 +74,12 @@ export const authOptions: NextAuthOptions = {
     error: '/dashboard',
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development',
 }
 
 async function refreshAccessToken(token: any) {
   try {
+    console.log('🔄 Refreshing access token...')
     const url = 'https://oauth2.googleapis.com/token'
     
     const response = await fetch(url, {
@@ -68,8 +98,15 @@ async function refreshAccessToken(token: any) {
     const refreshedTokens = await response.json()
 
     if (!response.ok) {
+      console.error('❌ Token refresh failed:', refreshedTokens)
       throw refreshedTokens
     }
+
+    console.log('✅ Token refresh successful:', {
+      hasAccessToken: !!refreshedTokens.access_token,
+      hasRefreshToken: !!refreshedTokens.refresh_token,
+      expiresIn: refreshedTokens.expires_in
+    })
 
     return {
       ...token,
@@ -78,7 +115,7 @@ async function refreshAccessToken(token: any) {
       refreshToken: refreshedTokens.refresh_token ?? token.refreshToken, // Fall back to old refresh token
     }
   } catch (error) {
-    console.log(error)
+    console.error('💥 Token refresh error:', error)
 
     return {
       ...token,

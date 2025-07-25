@@ -173,17 +173,32 @@ export async function exchangeCodeForTokens(code: string): Promise<{
 // Real Google Ads API functions
 export async function getAccessibleCustomers(refreshToken: string): Promise<AdAccount[]> {
   try {
+    console.log('🔍 Starting getAccessibleCustomers...')
+    console.log('🔑 Refresh token provided:', refreshToken ? 'Yes' : 'No')
+    console.log('🔧 Environment check:', {
+      hasClientId: !!process.env.GOOGLE_ADS_CLIENT_ID,
+      hasClientSecret: !!process.env.GOOGLE_ADS_CLIENT_SECRET,
+      hasDeveloperToken: !!process.env.GOOGLE_ADS_DEVELOPER_TOKEN
+    })
+
     const customer = googleAdsClient.Customer({
       customer_id: 'none', // We don't need a specific customer ID for this call
       refresh_token: refreshToken,
     })
 
+    console.log('📡 Calling listAccessibleCustomers...')
     const accessibleCustomers = await customer.listAccessibleCustomers()
+    console.log('✅ Got accessible customers:', {
+      count: accessibleCustomers.resource_names.length,
+      resourceNames: accessibleCustomers.resource_names
+    })
     
     // Get detailed information for each customer
+    console.log('🔍 Fetching detailed customer information...')
     const customerDetails = await Promise.all(
       accessibleCustomers.resource_names.map(async (resourceName: string) => {
         const customerId = resourceName.split('/')[1]
+        console.log(`📋 Processing customer ${customerId}...`)
         
         try {
           const customerClient = googleAdsClient.Customer({
@@ -197,6 +212,12 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
           })
 
           const customer = customerInfo[0]
+          console.log(`✅ Customer ${customerId} details:`, {
+            name: customer.descriptive_name,
+            isManager: customer.manager,
+            currency: customer.currency_code,
+            status: customer.status
+          })
           
           // Determine if this is a manager account
           const isManager = customer.manager === true
@@ -238,10 +259,10 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
               }
             }
           } catch (linkError) {
-            console.log(`Could not fetch manager links for ${customerId}:`, linkError)
+            console.log(`⚠️ Could not fetch manager links for ${customerId}:`, linkError)
           }
           
-          return {
+          const accountDetails = {
             id: customerId,
             name: customer.descriptive_name || `Account ${customerId}`,
             currency: customer.currency_code || 'USD',
@@ -254,8 +275,11 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
             level,
             accountType: isManager ? 'MCC' : 'CLIENT',
           } as AdAccount
+
+          console.log(`✅ Processed customer ${customerId}:`, accountDetails)
+          return accountDetails
         } catch (error) {
-          console.error(`Error fetching details for customer ${customerId}:`, error)
+          console.error(`❌ Error fetching details for customer ${customerId}:`, error)
           return {
             id: customerId,
             name: `Account ${customerId}`,
@@ -273,14 +297,27 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
     )
 
     // Sort accounts: MCC accounts first, then client accounts, then by name
-    return customerDetails.sort((a, b) => {
+    const sortedAccounts = customerDetails.sort((a, b) => {
       if (a.isManager && !b.isManager) return -1
       if (!a.isManager && b.isManager) return 1
       if (a.level !== b.level) return a.level - b.level
       return a.name.localeCompare(b.name)
     })
+
+    console.log('🎉 Final sorted accounts:', {
+      total: sortedAccounts.length,
+      managers: sortedAccounts.filter(acc => acc.isManager).length,
+      clients: sortedAccounts.filter(acc => !acc.isManager).length,
+      accounts: sortedAccounts.map(acc => ({ id: acc.id, name: acc.name, type: acc.accountType }))
+    })
+
+    return sortedAccounts
   } catch (error) {
-    console.error('Error fetching accessible customers:', error)
+    console.error('💥 Error in getAccessibleCustomers:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
     throw new Error('Failed to fetch accessible customers')
   }
 }
