@@ -377,6 +377,144 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
   }
 }
 
+export interface CampaignCreationData {
+  name: string
+  budgetAmountMicros: number // Budget in micros (e.g., $10 = 10,000,000 micros)
+  targetCpa?: number // Target CPA in micros
+  targetRoas?: number // Target ROAS as decimal (e.g., 4.0 for 400%)
+  biddingStrategy: 'TARGET_CPA' | 'TARGET_ROAS' | 'MAXIMIZE_CONVERSIONS' | 'MANUAL_CPC'
+  campaignType: 'SEARCH' | 'DISPLAY' | 'SHOPPING' | 'VIDEO'
+  startDate?: string // YYYY-MM-DD format
+  endDate?: string // YYYY-MM-DD format
+  adGroupName?: string
+  keywords?: string[] // Keywords to add to default ad group
+}
+
+export async function createCampaign(
+  customerId: string, 
+  refreshToken: string, 
+  campaignData: CampaignCreationData
+): Promise<{ success: boolean; campaignId?: string; budgetId?: string; adGroupId?: string; error?: string }> {
+  try {
+    console.log(`🚀 Creating campaign for customer ${customerId}:`, campaignData)
+    
+    const customer = googleAdsClient.Customer({
+      customer_id: customerId,
+      refresh_token: refreshToken,
+    })
+
+    // Step 1: Create Campaign Budget
+    console.log('💰 Creating campaign budget...')
+    const budgetOperation = {
+      create: {
+        name: `Budget for ${campaignData.name}`,
+        amount_micros: campaignData.budgetAmountMicros,
+        delivery_method: 'STANDARD',
+        explicitly_shared: false,
+      }
+    }
+
+    const budgetResponse = await customer.campaignBudgets.create([budgetOperation])
+    const budgetResourceName = budgetResponse.results[0].resource_name
+    const budgetId = budgetResourceName.split('/')[3]
+    console.log(`✅ Created budget: ${budgetId}`)
+
+    // Step 2: Create Campaign
+    console.log('📊 Creating campaign...')
+    const campaignOperation = {
+      create: {
+        name: campaignData.name,
+        advertising_channel_type: campaignData.campaignType,
+        status: 'PAUSED', // Start paused for safety
+        campaign_budget: budgetResourceName,
+        start_date: campaignData.startDate || new Date().toISOString().split('T')[0].replace(/-/g, ''),
+        end_date: campaignData.endDate,
+        network_settings: {
+          target_google_search: true,
+          target_search_network: true,
+          target_content_network: false,
+          target_partner_search_network: false,
+        }
+      }
+    }
+
+    // Add bidding strategy
+    if (campaignData.biddingStrategy === 'TARGET_CPA' && campaignData.targetCpa) {
+      campaignOperation.create.target_cpa = {
+        target_cpa_micros: campaignData.targetCpa
+      }
+    } else if (campaignData.biddingStrategy === 'TARGET_ROAS' && campaignData.targetRoas) {
+      campaignOperation.create.target_roas = {
+        target_roas: campaignData.targetRoas
+      }
+    } else if (campaignData.biddingStrategy === 'MAXIMIZE_CONVERSIONS') {
+      campaignOperation.create.maximize_conversions = {}
+    } else {
+      campaignOperation.create.manual_cpc = {
+        enhanced_cpc_enabled: true
+      }
+    }
+
+    const campaignResponse = await customer.campaigns.create([campaignOperation])
+    const campaignResourceName = campaignResponse.results[0].resource_name
+    const campaignId = campaignResourceName.split('/')[3]
+    console.log(`✅ Created campaign: ${campaignId}`)
+
+    // Step 3: Create Default Ad Group (if specified)
+    let adGroupId: string | undefined
+    if (campaignData.adGroupName) {
+      console.log('👥 Creating ad group...')
+      const adGroupOperation = {
+        create: {
+          name: campaignData.adGroupName,
+          campaign: campaignResourceName,
+          status: 'ENABLED',
+          type: 'SEARCH_STANDARD',
+          cpc_bid_micros: 1000000, // $1 default bid
+        }
+      }
+
+      const adGroupResponse = await customer.adGroups.create([adGroupOperation])
+      const adGroupResourceName = adGroupResponse.results[0].resource_name
+      adGroupId = adGroupResourceName.split('/')[3]
+      console.log(`✅ Created ad group: ${adGroupId}`)
+
+      // Step 4: Add Keywords (if specified)
+      if (campaignData.keywords && campaignData.keywords.length > 0) {
+        console.log('🔑 Adding keywords...')
+        const keywordOperations = campaignData.keywords.map(keyword => ({
+          create: {
+            ad_group: adGroupResourceName,
+            status: 'ENABLED',
+            keyword: {
+              text: keyword,
+              match_type: 'BROAD'
+            },
+            cpc_bid_micros: 1000000, // $1 default bid
+          }
+        }))
+
+        const keywordsResponse = await customer.adGroupCriteria.create(keywordOperations)
+        console.log(`✅ Added ${keywordsResponse.results.length} keywords`)
+      }
+    }
+
+    return {
+      success: true,
+      campaignId,
+      budgetId,
+      adGroupId
+    }
+
+  } catch (error) {
+    console.error('💥 Error creating campaign:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
 export async function getCampaigns(customerId: string, refreshToken: string): Promise<Campaign[]> {
   try {
     const customer = googleAdsClient.Customer({
