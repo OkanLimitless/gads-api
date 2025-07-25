@@ -64,22 +64,38 @@ export default function Dashboard() {
     setError('')
     
     try {
-      // Filter client accounts that belong to this MCC
-      const clients = allAccounts.filter(account => 
-        account.managerCustomerId === mccId && account.canManageCampaigns
-      )
+      console.log(`🏢 Fetching client accounts for MCC: ${mccId}`)
       
-      // If no direct clients found, show all non-MCC accounts as potential clients
-      if (clients.length === 0) {
-        const allClients = allAccounts.filter(account => account.canManageCampaigns)
-        setClientAccounts(allClients)
+      // Call the new MCC clients API to get actual managed client accounts
+      const response = await fetch(`/api/mcc-clients?mccId=${mccId}`)
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        console.log(`✅ Got ${data.clientAccounts.length} client accounts for MCC ${mccId}:`, data.clientAccounts)
+        setClientAccounts(data.clientAccounts)
+        setStep('client-selection')
       } else {
-        setClientAccounts(clients)
+        console.error('❌ Failed to fetch MCC client accounts:', data)
+        setError(data.error || 'Failed to load client accounts from MCC')
+        
+        // Fallback: show other accounts from the same Google account (current behavior)
+        console.log('🔄 Falling back to filtering from all accounts...')
+        const fallbackClients = allAccounts.filter(account => 
+          account.id !== mccId && account.canManageCampaigns
+        )
+        setClientAccounts(fallbackClients)
+        setStep('client-selection')
       }
-      
-      setStep('client-selection')
     } catch (error) {
+      console.error('💥 Error in handleMCCSelection:', error)
       setError('Failed to load client accounts')
+      
+      // Fallback: show other accounts from the same Google account
+      const fallbackClients = allAccounts.filter(account => 
+        account.id !== mccId && account.canManageCampaigns
+      )
+      setClientAccounts(fallbackClients)
+      setStep('client-selection')
     } finally {
       setLoading(false)
     }
