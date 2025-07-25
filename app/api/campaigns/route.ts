@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '../auth/[...nextauth]/route'
 import { getCampaigns, createCampaign, updateCampaign } from '@/lib/google-ads-client'
 import { getCampaigns as getMockCampaigns, createCampaign as createMockCampaign } from '@/lib/google-ads'
 
@@ -10,12 +12,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customerId')
-    const refreshToken = searchParams.get('refresh_token')
     
-    // If we have real tokens, use the real API
-    if (customerId && refreshToken) {
+    const session = await getServerSession(authOptions)
+    
+    // If we have a valid session and customer ID, use the real API
+    if (session?.refreshToken && customerId && session.error !== 'RefreshAccessTokenError') {
       try {
-        const campaigns = await getCampaigns(customerId, refreshToken)
+        const campaigns = await getCampaigns(customerId, session.refreshToken)
         return NextResponse.json({ campaigns, source: 'google_ads_api' })
       } catch (error) {
         console.error('Google Ads API error, falling back to mock data:', error)
@@ -26,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Default to mock data for demo purposes
-    const campaigns = await getMockCampaigns('123-456-7890')
+    const campaigns = await getMockCampaigns(customerId || '123-456-7890')
     return NextResponse.json({ campaigns, source: 'mock_data' })
   } catch (error) {
     console.error('Error fetching campaigns:', error)
@@ -37,12 +40,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { customerId, refreshToken, ...campaignData } = body
+    const { customerId, ...campaignData } = body
     
-    // If we have real tokens, use the real API
-    if (customerId && refreshToken) {
+    const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
+    // If we have a valid session and customer ID, use the real API
+    if (session.refreshToken && customerId && session.error !== 'RefreshAccessTokenError') {
       try {
-        const newCampaign = await createCampaign(customerId, refreshToken, campaignData)
+        const newCampaign = await createCampaign(customerId, session.refreshToken, campaignData)
         return NextResponse.json({ campaign: newCampaign, source: 'google_ads_api' })
       } catch (error) {
         console.error('Google Ads API error, falling back to mock creation:', error)
@@ -64,12 +73,22 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { customerId, refreshToken, campaignId, ...updates } = body
+    const { customerId, campaignId, ...updates } = body
     
-    // If we have real tokens, use the real API
-    if (customerId && refreshToken && campaignId) {
+    const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
+    if (session.error === 'RefreshAccessTokenError') {
+      return NextResponse.json({ error: 'Token refresh failed. Please re-authenticate.' }, { status: 401 })
+    }
+    
+    // If we have a valid session and required parameters, use the real API
+    if (session.refreshToken && customerId && campaignId) {
       try {
-        const updatedCampaign = await updateCampaign(customerId, refreshToken, campaignId, updates)
+        const updatedCampaign = await updateCampaign(customerId, session.refreshToken, campaignId, updates)
         return NextResponse.json({ campaign: updatedCampaign, source: 'google_ads_api' })
       } catch (error) {
         console.error('Google Ads API error:', error)

@@ -15,6 +15,10 @@ export interface AdAccount {
   status: string
   canManageCampaigns: boolean
   testAccount: boolean
+  isManager: boolean
+  managerCustomerId?: string
+  level: number
+  accountType: 'MCC' | 'CLIENT' | 'UNKNOWN'
 }
 
 export interface Campaign {
@@ -187,11 +191,55 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
             refresh_token: refreshToken,
           })
 
+          // Get customer info
           const customerInfo = await customerClient.customers.list({
             limit: 1,
           })
 
           const customer = customerInfo[0]
+          
+          // Determine if this is a manager account
+          const isManager = customer.manager === true
+          
+          // Get manager-customer links to understand hierarchy
+          let managerCustomerId: string | undefined
+          let level = 0
+          
+          try {
+            if (!isManager) {
+              // For client accounts, try to find their manager
+              const managerLinks = await customerClient.customerManagerLinks.list({
+                limit: 10,
+              })
+              
+              if (managerLinks.length > 0) {
+                // Find the active manager link
+                const activeManagerLink = managerLinks.find(link => link.status === 'ACTIVE')
+                if (activeManagerLink) {
+                  managerCustomerId = activeManagerLink.manager_customer?.split('/')[1]
+                  level = 1 // Client account under manager
+                }
+              }
+            } else {
+              // For manager accounts, check if they have a parent manager
+              const managerLinks = await customerClient.customerManagerLinks.list({
+                limit: 10,
+              })
+              
+              const parentManager = managerLinks.find(link => 
+                link.status === 'ACTIVE' && 
+                link.manager_customer && 
+                link.manager_customer.split('/')[1] !== customerId
+              )
+              
+              if (parentManager) {
+                managerCustomerId = parentManager.manager_customer?.split('/')[1]
+                level = 1 // Sub-manager under parent manager
+              }
+            }
+          } catch (linkError) {
+            console.log(`Could not fetch manager links for ${customerId}:`, linkError)
+          }
           
           return {
             id: customerId,
@@ -199,8 +247,12 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
             currency: customer.currency_code || 'USD',
             timeZone: customer.time_zone || 'UTC',
             status: customer.status || 'UNKNOWN',
-            canManageCampaigns: customer.manager === false, // Non-manager accounts can have campaigns
+            canManageCampaigns: !isManager, // Only non-manager accounts can have campaigns
             testAccount: customer.test_account || false,
+            isManager,
+            managerCustomerId,
+            level,
+            accountType: isManager ? 'MCC' : 'CLIENT',
           } as AdAccount
         } catch (error) {
           console.error(`Error fetching details for customer ${customerId}:`, error)
@@ -212,12 +264,21 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
             status: 'UNKNOWN',
             canManageCampaigns: true,
             testAccount: false,
+            isManager: false,
+            level: 0,
+            accountType: 'UNKNOWN',
           } as AdAccount
         }
       })
     )
 
-    return customerDetails
+    // Sort accounts: MCC accounts first, then client accounts, then by name
+    return customerDetails.sort((a, b) => {
+      if (a.isManager && !b.isManager) return -1
+      if (!a.isManager && b.isManager) return 1
+      if (a.level !== b.level) return a.level - b.level
+      return a.name.localeCompare(b.name)
+    })
   } catch (error) {
     console.error('Error fetching accessible customers:', error)
     throw new Error('Failed to fetch accessible customers')

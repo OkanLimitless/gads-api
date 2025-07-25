@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '../auth/[...nextauth]/route'
 import { getCampaignPerformance } from '@/lib/google-ads-client'
 
 // Force dynamic rendering
@@ -36,15 +38,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customerId')
-    const refreshToken = searchParams.get('refresh_token')
     const startDate = searchParams.get('startDate') || '2024-01-01'
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0]
     const campaignIds = searchParams.get('campaignIds')?.split(',')
     
-    // If we have real tokens, use the real API
-    if (customerId && refreshToken) {
+    const session = await getServerSession(authOptions)
+    
+    // If we have a valid session and customer ID, use the real API
+    if (session?.refreshToken && customerId && session.error !== 'RefreshAccessTokenError') {
       try {
-        const performance = await getCampaignPerformance(customerId, refreshToken, {
+        const performance = await getCampaignPerformance(customerId, session.refreshToken, {
           startDate,
           endDate,
         })

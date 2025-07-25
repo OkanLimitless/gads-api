@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession, signIn, signOut } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { BarChart3, Settings, Target, TrendingUp, Users, ArrowLeft, Link2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { BarChart3, Settings, Target, TrendingUp, Users, ArrowLeft, Link2, AlertCircle, CheckCircle, Loader2, LogOut, Building2 } from 'lucide-react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 
 // Import components dynamically to avoid SSR issues
 import dynamic from 'next/dynamic'
@@ -66,10 +66,14 @@ interface AdAccount {
   status: string
   canManageCampaigns: boolean
   testAccount: boolean
+  isManager: boolean
+  managerCustomerId?: string
+  level: number
+  accountType: 'MCC' | 'CLIENT' | 'UNKNOWN'
 }
 
 export default function Dashboard() {
-  const searchParams = useSearchParams()
+  const { data: session, status } = useSession()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [adGroups, setAdGroups] = useState<AdGroup[]>([])
   const [keywords, setKeywords] = useState<Keyword[]>([])
@@ -78,69 +82,58 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [accountsLoading, setAccountsLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [authStatus, setAuthStatus] = useState<'none' | 'authenticated' | 'error'>('none')
-  const [accessToken, setAccessToken] = useState<string>('')
-  const [refreshToken, setRefreshToken] = useState<string>('')
   const [apiSource, setApiSource] = useState<'mock_data' | 'google_ads_api'>('mock_data')
+  const [accountsStats, setAccountsStats] = useState<{
+    totalAccounts: number
+    managerAccounts: number
+    clientAccounts: number
+  }>({ totalAccounts: 0, managerAccounts: 0, clientAccounts: 0 })
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
   useEffect(() => {
-    if (mounted) {
-      // Check for OAuth callback parameters
-      const authSuccess = searchParams.get('auth_success')
-      const error = searchParams.get('error')
-      const errorDetails = searchParams.get('details')
-      const accessTokenParam = searchParams.get('access_token')
-      const refreshTokenParam = searchParams.get('refresh_token')
-
-      if (error) {
-        setAuthStatus('error')
-        console.error('OAuth error:', error, errorDetails)
-      } else if (authSuccess && accessTokenParam && refreshTokenParam) {
-        setAccessToken(accessTokenParam)
-        setRefreshToken(refreshTokenParam)
-        setAuthStatus('authenticated')
-        fetchAccounts(refreshTokenParam)
-        
-        // Clean up URL parameters
-        const url = new URL(window.location.href)
-        url.searchParams.delete('auth_success')
-        url.searchParams.delete('access_token')
-        url.searchParams.delete('refresh_token')
-        url.searchParams.delete('error')
-        url.searchParams.delete('details')
-        window.history.replaceState({}, '', url.toString())
-      } else {
-        fetchData()
-      }
-    }
-  }, [mounted, searchParams])
-
-  useEffect(() => {
-    if (selectedAccount && refreshToken) {
+    if (mounted && status === 'authenticated' && session) {
+      fetchAccounts()
+    } else if (mounted && status === 'unauthenticated') {
+      // Load mock data for demo
       fetchData()
     }
-  }, [selectedAccount, refreshToken])
+  }, [mounted, status, session])
 
-  const fetchAccounts = async (token: string) => {
+  useEffect(() => {
+    if (selectedAccount) {
+      fetchData()
+    }
+  }, [selectedAccount])
+
+  const fetchAccounts = async () => {
     setAccountsLoading(true)
     try {
-      const response = await fetch(`/api/accounts?refresh_token=${encodeURIComponent(token)}`)
+      const response = await fetch('/api/accounts')
       const data = await response.json()
       
-      if (data.accounts) {
+      if (response.ok && data.accounts) {
         setAccounts(data.accounts)
+        setAccountsStats({
+          totalAccounts: data.totalAccounts || data.accounts.length,
+          managerAccounts: data.managerAccounts || 0,
+          clientAccounts: data.clientAccounts || 0
+        })
+        
         // Auto-select first account that can manage campaigns
         const firstManageableAccount = data.accounts.find((acc: AdAccount) => acc.canManageCampaigns)
         if (firstManageableAccount) {
           setSelectedAccount(firstManageableAccount.id)
         }
+      } else if (response.status === 401) {
+        console.log('Authentication required for real API, using mock data')
+        fetchData()
       }
     } catch (error) {
       console.error('Error fetching accounts:', error)
+      fetchData() // Fall back to mock data
     } finally {
       setAccountsLoading(false)
     }
@@ -151,7 +144,6 @@ export default function Dashboard() {
     try {
       const params = new URLSearchParams()
       if (selectedAccount) params.set('customerId', selectedAccount)
-      if (refreshToken) params.set('refresh_token', refreshToken)
 
       const [campaignsRes, adGroupsRes, keywordsRes] = await Promise.all([
         fetch(`/api/campaigns?${params.toString()}`),
@@ -178,8 +170,15 @@ export default function Dashboard() {
     }
   }
 
-  const handleOAuthLogin = () => {
-    window.location.href = '/api/auth/google'
+  const handleSignIn = () => {
+    signIn('google')
+  }
+
+  const handleSignOut = () => {
+    signOut()
+    setAccounts([])
+    setSelectedAccount('')
+    setAccountsStats({ totalAccounts: 0, managerAccounts: 0, clientAccounts: 0 })
   }
 
   if (!mounted) {
@@ -197,6 +196,7 @@ export default function Dashboard() {
   const totalBudget = campaigns.reduce((sum, campaign) => sum + campaign.budget, 0)
   const activeCampaigns = campaigns.filter(c => c.status === 'ENABLED').length
   const totalKeywords = keywords.length
+  const isAuthenticated = status === 'authenticated'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -221,13 +221,19 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {authStatus === 'authenticated' ? (
-                <div className="flex items-center space-x-2 text-green-600">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm">Connected</span>
-                </div>
+              {isAuthenticated ? (
+                <>
+                  <div className="flex items-center space-x-2 text-green-600">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm">Connected as {session?.user?.name}</span>
+                  </div>
+                  <Button onClick={handleSignOut} variant="outline" size="sm">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </>
               ) : (
-                <Button onClick={handleOAuthLogin} variant="outline" size="sm">
+                <Button onClick={handleSignIn} variant="outline" size="sm">
                   <Link2 className="h-4 w-4 mr-2" />
                   Connect Google Ads
                 </Button>
@@ -251,7 +257,7 @@ export default function Dashboard() {
               <div className="text-sm text-gray-500">
                 Data Source: {apiSource === 'google_ads_api' ? 'Google Ads API' : 'Demo Mode'}
               </div>
-              {authStatus === 'authenticated' ? (
+              {isAuthenticated ? (
                 <div className="text-sm font-medium text-green-600">Real API Connected</div>
               ) : (
                 <div className="text-sm font-medium text-blue-600">Using Demo Data</div>
@@ -260,12 +266,21 @@ export default function Dashboard() {
           </div>
 
           {/* Account Selection */}
-          {authStatus === 'authenticated' && accounts.length > 0 && (
+          {isAuthenticated && accounts.length > 0 && (
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader>
                 <CardTitle className="flex items-center text-blue-900">
                   <Target className="h-5 w-5 mr-2" />
                   Select Google Ads Account
+                  <div className="ml-auto flex items-center space-x-4 text-sm">
+                    <div className="flex items-center">
+                      <Building2 className="h-4 w-4 mr-1" />
+                      <span>{accountsStats.totalAccounts} Total</span>
+                    </div>
+                    <div className="text-blue-700">
+                      {accountsStats.managerAccounts} MCC • {accountsStats.clientAccounts} Client
+                    </div>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -285,41 +300,32 @@ export default function Dashboard() {
                               ? 'border-blue-500 bg-blue-100'
                               : 'border-gray-200 bg-white hover:border-blue-300'
                           }`}
-                          onClick={() => setSelectedAccount(account.id)}
+                          onClick={() => account.canManageCampaigns ? setSelectedAccount(account.id) : null}
+                          style={{ cursor: account.canManageCampaigns ? 'pointer' : 'not-allowed' }}
                         >
-                          <div className="font-medium">{account.name}</div>
-                          <div className="text-sm text-gray-500">
-                            ID: {account.id} • {account.currency} • {account.testAccount ? 'Test' : 'Live'}
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium">{account.name}</div>
+                            <div className="flex items-center space-x-1">
+                              {account.isManager && (
+                                <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">MCC</span>
+                              )}
+                              {account.testAccount && (
+                                <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">Test</span>
+                              )}
+                            </div>
                           </div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            ID: {account.id} • {account.currency}
+                          </div>
+                          {!account.canManageCampaigns && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              Manager account - cannot manage campaigns directly
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* OAuth Error */}
-          {authStatus === 'error' && (
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="p-4">
-                <div className="flex items-start text-red-800">
-                  <AlertCircle className="h-5 w-5 mr-2 mt-0.5" />
-                  <div className="flex-1">
-                    <div className="font-semibold">Failed to connect to Google Ads</div>
-                    {searchParams.get('details') && (
-                      <div className="text-sm mt-1 text-red-700">
-                        {decodeURIComponent(searchParams.get('details') || '')}
-                      </div>
-                    )}
-                    <div className="text-sm mt-2 text-red-600">
-                      Make sure your OAuth credentials are correctly configured in Google Cloud Console.
-                    </div>
-                  </div>
-                  <Button onClick={handleOAuthLogin} variant="outline" size="sm" className="ml-4">
-                    Retry Connection
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -437,7 +443,7 @@ export default function Dashboard() {
                     onCampaignsChange={setCampaigns}
                     loading={loading}
                     customerId={selectedAccount}
-                    refreshToken={refreshToken}
+                    refreshToken={session?.refreshToken || ''}
                   />
                 </CardContent>
               </Card>
@@ -501,7 +507,7 @@ export default function Dashboard() {
                 <CardContent>
                   <PerformanceReports 
                     customerId={selectedAccount}
-                    refreshToken={refreshToken}
+                    refreshToken={session?.refreshToken || ''}
                     campaigns={campaigns}
                   />
                 </CardContent>
