@@ -388,21 +388,57 @@ export interface CampaignCreationData {
   budgetAmountMicros: number // Budget in micros (e.g., $10 = 10,000,000 micros)
   targetCpa?: number // Target CPA in micros
   targetRoas?: number // Target ROAS as decimal (e.g., 4.0 for 400%)
-  biddingStrategy: 'TARGET_CPA' | 'TARGET_ROAS' | 'MAXIMIZE_CONVERSIONS' | 'MANUAL_CPC'
-  campaignType: 'SEARCH' | 'DISPLAY' | 'SHOPPING' | 'VIDEO'
+  biddingStrategy: string
+  campaignType: string
   startDate?: string // YYYY-MM-DD format
   endDate?: string // YYYY-MM-DD format
-  adGroupName?: string
-  keywords?: string[] // Keywords to add to default ad group
+  
+  // Ad Group Settings
+  adGroupName: string
+  defaultBidMicros?: number // Default bid in micros
+  
+  // Responsive Search Ad
+  finalUrl: string
+  finalMobileUrl?: string
+  path1?: string
+  path2?: string
+  headlines: string[] // 3-15 headlines, max 30 chars each
+  descriptions: string[] // 2-4 descriptions, max 90 chars each
+  
+  // Keywords
+  keywords: string[]
+  
+  // Location Targeting
+  locations?: string[]
+  
+  // Other Settings
+  languageCode?: string
+  networkSettings?: {
+    targetGoogleSearch: boolean
+    targetSearchNetwork: boolean
+    targetContentNetwork: boolean
+  }
 }
 
 export async function createCampaign(
   customerId: string, 
   refreshToken: string, 
   campaignData: CampaignCreationData
-): Promise<{ success: boolean; campaignId?: string; budgetId?: string; adGroupId?: string; error?: string }> {
+): Promise<{ success: boolean; campaignId?: string; budgetId?: string; adGroupId?: string; adId?: string; error?: string }> {
   try {
-    console.log(`🚀 Creating campaign for customer ${customerId}:`, campaignData)
+    console.log(`🚀 Creating campaign for customer ${customerId}:`, {
+      campaignData: {
+        name: campaignData.name,
+        budgetAmountMicros: campaignData.budgetAmountMicros,
+        biddingStrategy: campaignData.biddingStrategy,
+        campaignType: campaignData.campaignType,
+        startDate: campaignData.startDate,
+        finalUrl: campaignData.finalUrl,
+        headlines: campaignData.headlines,
+        descriptions: campaignData.descriptions,
+        keywords: campaignData.keywords
+      }
+    })
     
     // Use MCC account as login customer for client account access
     const knownMCCId = '1284928552'
@@ -441,9 +477,9 @@ export async function createCampaign(
         start_date: campaignData.startDate || new Date().toISOString().split('T')[0].replace(/-/g, ''),
         end_date: campaignData.endDate,
         network_settings: {
-          target_google_search: true,
-          target_search_network: true,
-          target_content_network: false,
+          target_google_search: campaignData.networkSettings?.targetGoogleSearch ?? true,
+          target_search_network: campaignData.networkSettings?.targetSearchNetwork ?? true,
+          target_content_network: campaignData.networkSettings?.targetContentNetwork ?? false,
           target_partner_search_network: false,
         }
       }
@@ -460,9 +496,11 @@ export async function createCampaign(
       }
     } else if (campaignData.biddingStrategy === 'MAXIMIZE_CONVERSIONS') {
       campaignOperation.create.maximize_conversions = {}
+    } else if (campaignData.biddingStrategy === 'MAXIMIZE_CONVERSION_VALUE') {
+      campaignOperation.create.maximize_conversion_value = {}
     } else {
       campaignOperation.create.manual_cpc = {
-        enhanced_cpc_enabled: true
+        enhanced_cpc_enabled: campaignData.biddingStrategy === 'ENHANCED_CPC'
       }
     }
 
@@ -471,50 +509,124 @@ export async function createCampaign(
     const campaignId = campaignResourceName.split('/')[3]
     console.log(`✅ Created campaign: ${campaignId}`)
 
-    // Step 3: Create Default Ad Group (if specified)
-    let adGroupId: string | undefined
-    if (campaignData.adGroupName) {
-      console.log('👥 Creating ad group...')
-      const adGroupOperation = {
-        create: {
-          name: campaignData.adGroupName,
-          campaign: campaignResourceName,
-          status: 'ENABLED',
-          type: 'SEARCH_STANDARD',
-          cpc_bid_micros: 1000000, // $1 default bid
-        }
-      }
-
-      const adGroupResponse = await customer.adGroups.create([adGroupOperation])
-      const adGroupResourceName = adGroupResponse.results[0].resource_name
-      adGroupId = adGroupResourceName.split('/')[3]
-      console.log(`✅ Created ad group: ${adGroupId}`)
-
-      // Step 4: Add Keywords (if specified)
-      if (campaignData.keywords && campaignData.keywords.length > 0) {
-        console.log('🔑 Adding keywords...')
-        const keywordOperations = campaignData.keywords.map(keyword => ({
-          create: {
-            ad_group: adGroupResourceName,
-            status: 'ENABLED',
-            keyword: {
-              text: keyword,
-              match_type: 'BROAD'
-            },
-            cpc_bid_micros: 1000000, // $1 default bid
-          }
-        }))
-
-        const keywordsResponse = await customer.adGroupCriteria.create(keywordOperations)
-        console.log(`✅ Added ${keywordsResponse.results.length} keywords`)
+    // Step 3: Create Ad Group
+    console.log('👥 Creating ad group...')
+    const adGroupOperation = {
+      create: {
+        name: campaignData.adGroupName,
+        campaign: campaignResourceName,
+        status: 'ENABLED',
+        type: 'SEARCH_STANDARD',
+        cpc_bid_micros: campaignData.defaultBidMicros || 1000000, // Default $1 bid
       }
     }
 
+    const adGroupResponse = await customer.adGroups.create([adGroupOperation])
+    const adGroupResourceName = adGroupResponse.results[0].resource_name
+    const adGroupId = adGroupResourceName.split('/')[3]
+    console.log(`✅ Created ad group: ${adGroupId}`)
+
+    // Step 4: Create Responsive Search Ad
+    console.log('📝 Creating responsive search ad...')
+    const responsiveSearchAd = {
+      responsive_search_ad: {
+        headlines: campaignData.headlines.map(text => ({ text })),
+        descriptions: campaignData.descriptions.map(text => ({ text })),
+        path1: campaignData.path1 || '',
+        path2: campaignData.path2 || ''
+      },
+      final_urls: [campaignData.finalUrl],
+      ...(campaignData.finalMobileUrl && {
+        final_mobile_urls: [campaignData.finalMobileUrl]
+      })
+    }
+
+    const adOperation = {
+      create: {
+        ad_group: adGroupResourceName,
+        status: 'ENABLED',
+        ad: responsiveSearchAd
+      }
+    }
+
+    const adResponse = await customer.adGroupAds.create([adOperation])
+    const adResourceName = adResponse.results[0].resource_name
+    const adId = adResourceName.split('/')[3]
+    console.log(`✅ Created responsive search ad: ${adId}`)
+
+    // Step 5: Add Keywords
+    console.log('🔑 Adding keywords...')
+    const keywordOperations = campaignData.keywords.map(keyword => ({
+      create: {
+        ad_group: adGroupResourceName,
+        status: 'ENABLED',
+        keyword: {
+          text: keyword.trim(),
+          match_type: 'BROAD'
+        },
+        cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
+      }
+    }))
+
+    const keywordsResponse = await customer.adGroupCriteria.create(keywordOperations)
+    console.log(`✅ Added ${keywordsResponse.results.length} keywords`)
+
+    // Step 6: Add Location Targeting (if specified)
+    if (campaignData.locations && campaignData.locations.length > 0) {
+      console.log('🌍 Adding location targeting...')
+      const locationCriteriaMap: Record<string, number> = {
+        'US': 2840, // United States
+        'CA': 2124, // Canada
+        'GB': 2826, // United Kingdom
+        'AU': 2036, // Australia
+        'DE': 2276, // Germany
+        'FR': 2250  // France
+      }
+
+      const locationOperations = campaignData.locations.map(location => ({
+        create: {
+          campaign: campaignResourceName,
+          location: {
+            geo_target_constant: `geoTargetConstants/${locationCriteriaMap[location] || 2840}`
+          }
+        }
+      }))
+
+      await customer.campaignCriteria.create(locationOperations)
+      console.log(`✅ Added location targeting for: ${campaignData.locations.join(', ')}`)
+    }
+
+    // Step 7: Add Language Targeting (if specified)
+    if (campaignData.languageCode) {
+      console.log('🗣️ Adding language targeting...')
+      const languageCriteriaMap: Record<string, number> = {
+        'en': 1000, // English
+        'es': 1003, // Spanish
+        'fr': 1002, // French
+        'de': 1001, // German
+        'it': 1004  // Italian
+      }
+
+      const languageOperation = {
+        create: {
+          campaign: campaignResourceName,
+          language: {
+            language_constant: `languageConstants/${languageCriteriaMap[campaignData.languageCode] || 1000}`
+          }
+        }
+      }
+
+      await customer.campaignCriteria.create([languageOperation])
+      console.log(`✅ Added language targeting: ${campaignData.languageCode}`)
+    }
+
+    console.log('🎉 Campaign creation completed successfully!')
     return {
       success: true,
       campaignId,
       budgetId,
-      adGroupId
+      adGroupId,
+      adId
     }
 
   } catch (error) {
