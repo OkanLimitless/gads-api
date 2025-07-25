@@ -189,20 +189,26 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
       fullResponse: accessibleCustomers
     })
     
-    // Get detailed information for each customer
+    // Only process the hardcoded MCC account to avoid deactivated account errors
     console.log('🔍 Fetching detailed customer information...')
+    const knownMCCId = '1284928552'
+    
+    // Filter to only include the known MCC account
+    const filteredResourceNames = accessibleCustomers.resource_names.filter((resourceName: string) => {
+      const customerId = resourceName.split('/')[1]
+      return customerId === knownMCCId
+    })
+    
+    console.log(`🎯 Processing only known MCC account: ${knownMCCId}`)
+    console.log(`📊 Filtered from ${accessibleCustomers.resource_names.length} to ${filteredResourceNames.length} accounts`)
+    
     const customerDetails = await Promise.all(
-      accessibleCustomers.resource_names.map(async (resourceName: string) => {
+      filteredResourceNames.map(async (resourceName: string) => {
         const customerId = resourceName.split('/')[1]
         console.log(`📋 Processing customer ${customerId}...`)
         
-        // Hardcode your known MCC account for now
-        const knownMCCId = '1284928552'
         const isKnownMCC = customerId === knownMCCId
-        
-        if (isKnownMCC) {
-          console.log(`🎯 Found known MCC account: ${customerId}`)
-        }
+        console.log(`🎯 Found known MCC account: ${customerId}`)
         
         try {
           const customerClient = googleAdsClient.Customer({

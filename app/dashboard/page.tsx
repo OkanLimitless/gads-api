@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Link2, LogOut, Building2, Users, Target, AlertCircle, Loader2, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import CampaignCreationForm from '@/components/CampaignCreationForm'
 
 interface AdAccount {
   id: string
@@ -374,39 +375,17 @@ export default function Dashboard() {
 
           {/* Step 3: Campaign Creation */}
           {step === 'campaign-creation' && selectedClient && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Target className="h-5 w-5 mr-2 text-blue-600" />
-                  Create Campaign
-                </CardTitle>
-                <CardDescription>
-                  Create a new campaign for: <strong>{selectedClient.name}</strong>
-                  <span className="block mt-1 text-sm text-gray-500">
-                    Account ID: {selectedClient.id}
-                  </span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <Target className="h-12 w-12 mx-auto mb-4 text-blue-600" />
-                  <h3 className="text-lg font-semibold mb-2">Campaign Creation Coming Soon</h3>
-                  <p className="text-gray-600 mb-4">
-                    Campaign creation interface will be implemented here.
-                  </p>
-                  <div className="bg-blue-50 p-4 rounded-lg text-left">
-                    <h4 className="font-medium text-blue-900 mb-2">Selected Account Details:</h4>
-                    <div className="space-y-1 text-sm text-blue-800">
-                      <div><strong>Name:</strong> {selectedClient.name}</div>
-                      <div><strong>ID:</strong> {selectedClient.id}</div>
-                      <div><strong>Currency:</strong> {selectedClient.currency}</div>
-                      <div><strong>Timezone:</strong> {selectedClient.timeZone}</div>
-                      <div><strong>Status:</strong> {selectedClient.status}</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <CampaignCreationForm
+              selectedAccount={selectedClient}
+              onSuccess={(campaignData) => {
+                console.log('Campaign created successfully:', campaignData)
+                // You can add additional success handling here
+              }}
+              onError={(error) => {
+                console.error('Campaign creation failed:', error)
+                // You can add additional error handling here
+              }}
+            />
           )}
         </div>
       </div>
