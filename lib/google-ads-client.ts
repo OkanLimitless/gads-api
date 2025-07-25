@@ -184,8 +184,9 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
     console.log('📡 Calling listAccessibleCustomers...')
     const accessibleCustomers = await googleAdsClient.listAccessibleCustomers(refreshToken)
     console.log('✅ Got accessible customers:', {
-      count: accessibleCustomers.resource_names.length,
-      resourceNames: accessibleCustomers.resource_names
+      count: accessibleCustomers.resource_names?.length || 0,
+      resourceNames: accessibleCustomers.resource_names,
+      fullResponse: accessibleCustomers
     })
     
     // Get detailed information for each customer
@@ -222,36 +223,54 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
           let level = 0
           
           try {
-            if (!isManager) {
-              // For client accounts, try to find their manager
-              const managerLinks = await customerClient.customerManagerLinks.list({
-                limit: 10,
-              })
-              
-              if (managerLinks.length > 0) {
-                // Find the active manager link
-                const activeManagerLink = managerLinks.find(link => link.status === 'ACTIVE')
-                if (activeManagerLink) {
-                  managerCustomerId = activeManagerLink.manager_customer?.split('/')[1]
-                  level = 1 // Client account under manager
-                }
+            // Query customer manager links using GAQL
+            const managerLinksQuery = `
+              SELECT 
+                customer_manager_link.manager_customer,
+                customer_manager_link.status
+              FROM customer_manager_link
+              WHERE customer_manager_link.status = 'ACTIVE'
+            `
+            
+            console.log(`🔗 Querying manager links for ${customerId}...`)
+            const managerLinksResponse = await customerClient.query({
+              query: managerLinksQuery,
+            })
+
+            console.log(`📋 Manager links for ${customerId}:`, managerLinksResponse)
+
+            if (managerLinksResponse.length > 0) {
+              const managerLink = managerLinksResponse[0]
+              if (managerLink.customer_manager_link?.manager_customer) {
+                managerCustomerId = managerLink.customer_manager_link.manager_customer.split('/')[1]
+                level = isManager ? 1 : 1 // Both can be level 1 if they have a parent
+                console.log(`👆 ${customerId} is managed by ${managerCustomerId}`)
               }
-            } else {
-              // For manager accounts, check if they have a parent manager
-              const managerLinks = await customerClient.customerManagerLinks.list({
-                limit: 10,
-              })
+            }
+
+            // For manager accounts, also check how many clients they manage
+            if (isManager) {
+              const clientsQuery = `
+                SELECT 
+                  customer_client.client_customer,
+                  customer_client.level,
+                  customer_client.manager
+                FROM customer_client
+                WHERE customer_client.level <= 2
+              `
               
-              const parentManager = managerLinks.find(link => 
-                link.status === 'ACTIVE' && 
-                link.manager_customer && 
-                link.manager_customer.split('/')[1] !== customerId
+              console.log(`👥 Checking clients managed by ${customerId}...`)
+              const clientsResponse = await customerClient.query({
+                query: clientsQuery,
+              })
+
+              console.log(`📊 ${customerId} manages ${clientsResponse.length} client accounts:`, 
+                clientsResponse.map((c: any) => ({
+                  client: c.customer_client?.client_customer,
+                  level: c.customer_client?.level,
+                  isManager: c.customer_client?.manager
+                }))
               )
-              
-              if (parentManager) {
-                managerCustomerId = parentManager.manager_customer?.split('/')[1]
-                level = 1 // Sub-manager under parent manager
-              }
             }
           } catch (linkError) {
             console.log(`⚠️ Could not fetch manager links for ${customerId}:`, linkError)
@@ -299,11 +318,26 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
       return a.name.localeCompare(b.name)
     })
 
+    const mccAccounts = sortedAccounts.filter(acc => acc.isManager)
+    const clientAccounts = sortedAccounts.filter(acc => !acc.isManager)
+
     console.log('🎉 Final sorted accounts:', {
       total: sortedAccounts.length,
-      managers: sortedAccounts.filter(acc => acc.isManager).length,
-      clients: sortedAccounts.filter(acc => !acc.isManager).length,
-      accounts: sortedAccounts.map(acc => ({ id: acc.id, name: acc.name, type: acc.accountType }))
+      managers: mccAccounts.length,
+      clients: clientAccounts.length,
+      mccDetails: mccAccounts.map(acc => ({ 
+        id: acc.id, 
+        name: acc.name, 
+        type: acc.accountType, 
+        isManager: acc.isManager 
+      })),
+      clientDetails: clientAccounts.map(acc => ({ 
+        id: acc.id, 
+        name: acc.name, 
+        type: acc.accountType, 
+        isManager: acc.isManager,
+        managedBy: acc.managerCustomerId 
+      }))
     })
 
     return sortedAccounts
