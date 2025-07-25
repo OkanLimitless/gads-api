@@ -404,10 +404,15 @@ export async function createCampaign(
   try {
     console.log(`🚀 Creating campaign for customer ${customerId}:`, campaignData)
     
+    // Use MCC account as login customer for client account access
+    const knownMCCId = '1284928552'
     const customer = googleAdsClient.Customer({
       customer_id: customerId,
       refresh_token: refreshToken,
+      login_customer_id: knownMCCId, // Required for accessing client accounts
     })
+    
+    console.log(`🔑 Using MCC ${knownMCCId} as login customer for client ${customerId}`)
 
     // Step 1: Create Campaign Budget
     console.log('💰 Creating campaign budget...')
@@ -523,9 +528,12 @@ export async function createCampaign(
 
 export async function getCampaigns(customerId: string, refreshToken: string): Promise<Campaign[]> {
   try {
+    // Use MCC account as login customer for client account access
+    const knownMCCId = '1284928552'
     const customer = googleAdsClient.Customer({
       customer_id: customerId,
       refresh_token: refreshToken,
+      login_customer_id: knownMCCId, // Required for accessing client accounts
     })
 
     const campaigns = await customer.campaigns.list({
@@ -556,9 +564,12 @@ export async function getCampaignPerformance(
   dateRange: { startDate: string; endDate: string }
 ): Promise<CampaignPerformance[]> {
   try {
+    // Use MCC account as login customer for client account access
+    const knownMCCId = '1284928552'
     const customer = googleAdsClient.Customer({
       customer_id: customerId,
       refresh_token: refreshToken,
+      login_customer_id: knownMCCId, // Required for accessing client accounts
     })
 
     const report = await customer.report({
@@ -616,9 +627,12 @@ export async function updateCampaign(
   }
 ): Promise<Campaign> {
   try {
+    // Use MCC account as login customer for client account access
+    const knownMCCId = '1284928552'
     const customer = googleAdsClient.Customer({
       customer_id: customerId,
       refresh_token: refreshToken,
+      login_customer_id: knownMCCId, // Required for accessing client accounts
     })
 
     const operations = []
@@ -681,9 +695,12 @@ export async function updateCampaign(
 
 export async function getAdGroups(customerId: string, refreshToken: string, campaignId?: string): Promise<AdGroup[]> {
   try {
+    // Use MCC account as login customer for client account access
+    const knownMCCId = '1284928552'
     const customer = googleAdsClient.Customer({
       customer_id: customerId,
       refresh_token: refreshToken,
+      login_customer_id: knownMCCId, // Required for accessing client accounts
     })
 
     const constraints = campaignId ? [`ad_group.campaign = "customers/${customerId}/campaigns/${campaignId}"`] : []
