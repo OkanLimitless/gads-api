@@ -196,27 +196,58 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
         const customerId = resourceName.split('/')[1]
         console.log(`📋 Processing customer ${customerId}...`)
         
+        // Hardcode your known MCC account for now
+        const knownMCCId = '1284928552'
+        const isKnownMCC = customerId === knownMCCId
+        
+        if (isKnownMCC) {
+          console.log(`🎯 Found known MCC account: ${customerId}`)
+        }
+        
         try {
           const customerClient = googleAdsClient.Customer({
             customer_id: customerId,
             refresh_token: refreshToken,
           })
 
-          // Get customer info
-          const customerInfo = await customerClient.customers.list({
-            limit: 1,
+          // Get customer info using GAQL query
+          const customerQuery = `
+            SELECT 
+              customer.descriptive_name,
+              customer.manager,
+              customer.currency_code,
+              customer.time_zone,
+              customer.status,
+              customer.test_account
+            FROM customer
+            LIMIT 1
+          `
+          
+          console.log(`📋 Querying customer details for ${customerId}...`)
+          const customerInfo = await customerClient.query({
+            query: customerQuery,
           })
 
-          const customer = customerInfo[0]
-          console.log(`✅ Customer ${customerId} details:`, {
-            name: customer.descriptive_name,
-            isManager: customer.manager,
-            currency: customer.currency_code,
-            status: customer.status
-          })
-          
-          // Determine if this is a manager account
-          const isManager = customer.manager === true
+          let customer: any = {}
+          let isManager = isKnownMCC // Default to true for known MCC
+
+          if (customerInfo.length > 0) {
+            customer = customerInfo[0].customer || {}
+            // Override isManager for known MCC or use API response
+            isManager = isKnownMCC || customer.manager === true
+            
+            console.log(`✅ Customer ${customerId} details:`, {
+              name: customer.descriptive_name,
+              isManager: isManager,
+              currency: customer.currency_code,
+              status: customer.status,
+              isKnownMCC: isKnownMCC,
+              rawCustomer: customer
+            })
+          } else {
+            console.warn(`⚠️ No customer info found for ${customerId}, using defaults`)
+            isManager = isKnownMCC
+          }
           
           // Get manager-customer links to understand hierarchy
           let managerCustomerId: string | undefined
@@ -294,17 +325,18 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
           return accountDetails
         } catch (error) {
           console.error(`❌ Error fetching details for customer ${customerId}:`, error)
+          const fallbackIsManager = isKnownMCC
           return {
             id: customerId,
-            name: `Account ${customerId}`,
+            name: isKnownMCC ? `MCC Account ${customerId}` : `Account ${customerId}`,
             currency: 'USD',
             timeZone: 'UTC',
             status: 'UNKNOWN',
-            canManageCampaigns: true,
+            canManageCampaigns: !fallbackIsManager,
             testAccount: false,
-            isManager: false,
+            isManager: fallbackIsManager,
             level: 0,
-            accountType: 'UNKNOWN',
+            accountType: fallbackIsManager ? 'MCC' : 'UNKNOWN',
           } as AdAccount
         }
       })
