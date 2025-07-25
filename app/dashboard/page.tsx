@@ -103,6 +103,13 @@ export default function Dashboard() {
   }
 
   const handleClientSelection = (clientId: string) => {
+    console.log('🎯 Client selected:', clientId)
+    console.log('📋 Available client accounts:', clientAccounts)
+    console.log('🔍 Looking for client with ID:', clientId)
+    
+    const foundClient = clientAccounts.find(account => account.id === clientId)
+    console.log('✅ Found client:', foundClient)
+    
     setSelectedClientAccount(clientId)
     setStep('campaign-creation')
   }
@@ -124,7 +131,7 @@ export default function Dashboard() {
   // Get MCC accounts
   const mccAccounts = allAccounts.filter(account => account.isManager)
   const selectedMCCAccount = allAccounts.find(account => account.id === selectedMCC)
-  const selectedClient = allAccounts.find(account => account.id === selectedClientAccount)
+  const selectedClient = clientAccounts.find(account => account.id === selectedClientAccount)
 
   if (status === 'loading') {
     return (
@@ -374,18 +381,57 @@ export default function Dashboard() {
           )}
 
           {/* Step 3: Campaign Creation */}
-          {step === 'campaign-creation' && selectedClient && (
-            <CampaignCreationForm
-              selectedAccount={selectedClient}
-              onSuccess={(campaignData) => {
-                console.log('Campaign created successfully:', campaignData)
-                // You can add additional success handling here
-              }}
-              onError={(error) => {
-                console.error('Campaign creation failed:', error)
-                // You can add additional error handling here
-              }}
-            />
+          {step === 'campaign-creation' && (
+            <>
+              {selectedClient ? (
+                <CampaignCreationForm
+                  selectedAccount={selectedClient}
+                  onSuccess={(campaignData) => {
+                    console.log('Campaign created successfully:', campaignData)
+                    // You can add additional success handling here
+                  }}
+                  onError={(error) => {
+                    console.error('Campaign creation failed:', error)
+                    // You can add additional error handling here
+                  }}
+                />
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <AlertCircle className="h-5 w-5 mr-2 text-red-600" />
+                      Client Account Not Found
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-600" />
+                      <h3 className="text-lg font-semibold mb-2">Debug Information</h3>
+                      <div className="bg-gray-50 p-4 rounded-lg text-left space-y-2">
+                        <div><strong>Step:</strong> {step}</div>
+                        <div><strong>Selected Client Account ID:</strong> {selectedClientAccount || 'None'}</div>
+                        <div><strong>Client Accounts Count:</strong> {clientAccounts.length}</div>
+                        <div><strong>Client Accounts:</strong></div>
+                        <pre className="text-xs bg-white p-2 rounded border overflow-auto max-h-40">
+                          {JSON.stringify(clientAccounts, null, 2)}
+                        </pre>
+                        <div><strong>Selected Client Found:</strong> {selectedClient ? 'Yes' : 'No'}</div>
+                        {selectedClient && (
+                          <div><strong>Selected Client:</strong>
+                            <pre className="text-xs bg-white p-2 rounded border">
+                              {JSON.stringify(selectedClient, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                      <Button onClick={handleBack} className="mt-4">
+                        Go Back
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
       </div>
