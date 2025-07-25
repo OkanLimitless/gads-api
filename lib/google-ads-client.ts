@@ -223,10 +223,8 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
             LIMIT 1
           `
           
-          console.log(`📋 Querying customer details for ${customerId}...`)
-          const customerInfo = await customerClient.query({
-            query: customerQuery,
-          })
+                     console.log(`📋 Querying customer details for ${customerId}...`)
+           const customerInfo = await customerClient.query(customerQuery)
 
           let customer: any = {}
           let isManager = isKnownMCC // Default to true for known MCC
@@ -263,10 +261,8 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
               WHERE customer_manager_link.status = 'ACTIVE'
             `
             
-            console.log(`🔗 Querying manager links for ${customerId}...`)
-            const managerLinksResponse = await customerClient.query({
-              query: managerLinksQuery,
-            })
+                         console.log(`🔗 Querying manager links for ${customerId}...`)
+             const managerLinksResponse = await customerClient.query(managerLinksQuery)
 
             console.log(`📋 Manager links for ${customerId}:`, managerLinksResponse)
 
@@ -290,10 +286,8 @@ export async function getAccessibleCustomers(refreshToken: string): Promise<AdAc
                 WHERE customer_client.level <= 2
               `
               
-              console.log(`👥 Checking clients managed by ${customerId}...`)
-              const clientsResponse = await customerClient.query({
-                query: clientsQuery,
-              })
+                             console.log(`👥 Checking clients managed by ${customerId}...`)
+               const clientsResponse = await customerClient.query(clientsQuery)
 
               console.log(`📊 ${customerId} manages ${clientsResponse.length} client accounts:`, 
                 clientsResponse.map((c: any) => ({

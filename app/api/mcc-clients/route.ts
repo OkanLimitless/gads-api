@@ -63,9 +63,7 @@ export async function GET(request: NextRequest) {
     `
 
     console.log(`📊 Querying client accounts for MCC ${mccId}...`)
-    const clientsResponse = await mccCustomerClient.query({
-      query: clientsQuery,
-    })
+    const clientsResponse = await mccCustomerClient.query(clientsQuery)
 
     console.log(`✅ Found ${clientsResponse.length} client accounts:`, clientsResponse)
 
