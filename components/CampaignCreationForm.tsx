@@ -25,15 +25,9 @@ interface CampaignData {
   // Campaign Settings
   name: string
   budget: number
-  biddingStrategy: string
-  
-  // Ad Group Settings
-  adGroupName: string
-  defaultBid: number
   
   // Responsive Search Ad
   finalUrl: string
-  finalMobileUrl?: string
   path1?: string
   path2?: string
   headlines: string[]
@@ -50,8 +44,7 @@ interface CampaignData {
 }
 
 const STEP_TITLES = [
-  'Campaign Basics',
-  'Budget & Bidding', 
+  'Campaign Setup',
   'Targeting',
   'Ad Creation',
   'Keywords',
@@ -68,9 +61,6 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
     budget: 10, // Budget in dollars (will be converted to micros in backend)
-    biddingStrategy: 'MAXIMIZE_CONVERSIONS',
-    adGroupName: '',
-    defaultBid: 1, // Default bid in dollars (will be converted to micros in backend)
     finalUrl: '',
     headlines: ['', '', ''],
     descriptions: ['', ''],
@@ -83,21 +73,16 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     const newErrors: Record<string, string> = {}
     
     switch (step) {
-      case 0: // Campaign Basics
+      case 0: // Campaign Setup
         if (!campaignData.name.trim()) newErrors.name = 'Campaign name is required'
-        if (!campaignData.adGroupName.trim()) newErrors.adGroupName = 'Ad group name is required'
-        break
-      
-      case 1: // Budget & Bidding
         if (campaignData.budget < 1) newErrors.budget = 'Minimum budget is $1.00'
-        if (campaignData.defaultBid < 0.1) newErrors.defaultBid = 'Minimum bid is $0.10'
         break
       
-      case 2: // Targeting
+      case 1: // Targeting
         if (campaignData.locations.length === 0) newErrors.locations = 'At least one location is required'
         break
       
-      case 3: // Ad Creation
+      case 2: // Ad Creation
         if (!campaignData.finalUrl.trim()) newErrors.finalUrl = 'Final URL is required'
         if (!campaignData.finalUrl.startsWith('http')) newErrors.finalUrl = 'Final URL must start with http:// or https://'
         
@@ -108,7 +93,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
         if (validDescriptions.length < 2) newErrors.descriptions = 'At least 2 descriptions are required'
         break
       
-      case 4: // Keywords
+      case 3: // Keywords
         const validKeywords = campaignData.keywords.filter(k => k.trim().length > 0)
         if (validKeywords.length === 0) newErrors.keywords = 'At least one keyword is required'
         break
@@ -173,13 +158,12 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
           campaignData: {
             name: campaignData.name,
             budgetAmountMicros: campaignData.budget * 1000000, // Convert dollars to micros
-            biddingStrategy: campaignData.biddingStrategy,
+            biddingStrategy: 'MAXIMIZE_CONVERSIONS', // Hardcoded to MAXIMIZE_CONVERSIONS
             campaignType: 'SEARCH', // Hardcoded to SEARCH
             startDate: new Date().toISOString().split('T')[0].replace(/-/g, ''), // Today's date in YYYYMMDD format
-            adGroupName: campaignData.adGroupName,
-            defaultBidMicros: campaignData.defaultBid * 1000000, // Convert dollars to micros
+            adGroupName: 'Ad group1', // Hardcoded ad group name
+            defaultBidMicros: 1000000, // Default $1 bid (not used with MAXIMIZE_CONVERSIONS)
             finalUrl: campaignData.finalUrl,
-            finalMobileUrl: campaignData.finalMobileUrl,
             path1: campaignData.path1,
             path2: campaignData.path2,
             headlines: campaignData.headlines.filter(h => h.trim().length > 0),
@@ -261,7 +245,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
 
   const renderStep = () => {
     switch (currentStep) {
-      case 0: // Campaign Basics
+      case 0: // Campaign Setup
         return (
           <div className="space-y-6">
             <div>
@@ -277,59 +261,6 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
             </div>
 
             <div>
-              <Label htmlFor="adGroupName">Ad Group Name *</Label>
-              <Input
-                id="adGroupName"
-                value={campaignData.adGroupName}
-                onChange={(e) => updateCampaignData('adGroupName', e.target.value)}
-                placeholder="e.g., General Keywords"
-                className={errors.adGroupName ? 'border-red-500' : ''}
-              />
-              {errors.adGroupName && <p className="text-sm text-red-500 mt-1">{errors.adGroupName}</p>}
-            </div>
-
-            <div>
-              <Label htmlFor="campaignType">Campaign Type</Label>
-              <Select value={campaignData.campaignType} onValueChange={(value) => updateCampaignData('campaignType', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SEARCH">Search</SelectItem>
-                  <SelectItem value="DISPLAY">Display</SelectItem>
-                  <SelectItem value="SHOPPING">Shopping</SelectItem>
-                  <SelectItem value="VIDEO">Video</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="startDate">Start Date *</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={campaignData.startDate}
-                  onChange={(e) => updateCampaignData('startDate', e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="endDate">End Date (Optional)</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={campaignData.endDate || ''}
-                  onChange={(e) => updateCampaignData('endDate', e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        )
-
-      case 1: // Budget & Bidding
-        return (
-          <div className="space-y-6">
-            <div>
               <Label htmlFor="budget">Daily Budget ($) *</Label>
               <Input
                 id="budget"
@@ -339,46 +270,16 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                 value={campaignData.budget}
                 onChange={(e) => updateCampaignData('budget', parseFloat(e.target.value) || 0)}
                 className={errors.budget ? 'border-red-500' : ''}
+                placeholder="e.g., 10"
               />
               <p className="text-sm text-gray-500 mt-1">Amount in dollars (e.g., 10 = $10.00 per day)</p>
               {errors.budget && <p className="text-sm text-red-500 mt-1">{errors.budget}</p>}
             </div>
 
-            <div>
-              <Label htmlFor="biddingStrategy">Bidding Strategy</Label>
-              <Select value={campaignData.biddingStrategy} onValueChange={(value) => updateCampaignData('biddingStrategy', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MAXIMIZE_CONVERSIONS">Maximize Conversions</SelectItem>
-                  <SelectItem value="MAXIMIZE_CONVERSION_VALUE">Maximize Conversion Value</SelectItem>
-                  <SelectItem value="TARGET_CPA">Target CPA</SelectItem>
-                  <SelectItem value="TARGET_ROAS">Target ROAS</SelectItem>
-                  <SelectItem value="MANUAL_CPC">Manual CPC</SelectItem>
-                  <SelectItem value="ENHANCED_CPC">Enhanced CPC</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="defaultBid">Default Bid ($) *</Label>
-              <Input
-                id="defaultBid"
-                type="number"
-                min="0.1"
-                step="0.1"
-                value={campaignData.defaultBid}
-                onChange={(e) => updateCampaignData('defaultBid', parseFloat(e.target.value) || 0)}
-                className={errors.defaultBid ? 'border-red-500' : ''}
-              />
-              <p className="text-sm text-gray-500 mt-1">Amount in dollars (e.g., 1 = $1.00 per click)</p>
-              {errors.defaultBid && <p className="text-sm text-red-500 mt-1">{errors.defaultBid}</p>}
-            </div>
           </div>
         )
 
-      case 2: // Targeting
+      case 1: // Targeting
         return (
           <div className="space-y-6">
             <div>
@@ -419,7 +320,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
           </div>
         )
 
-      case 3: // Ad Creation
+      case 2: // Ad Creation
         return (
           <div className="space-y-6">
             <div>
@@ -434,15 +335,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               {errors.finalUrl && <p className="text-sm text-red-500 mt-1">{errors.finalUrl}</p>}
             </div>
 
-            <div>
-              <Label htmlFor="finalMobileUrl">Mobile Final URL (Optional)</Label>
-              <Input
-                id="finalMobileUrl"
-                value={campaignData.finalMobileUrl || ''}
-                onChange={(e) => updateCampaignData('finalMobileUrl', e.target.value)}
-                placeholder="https://m.example.com/landing-page"
-              />
-            </div>
+
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -546,7 +439,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
           </div>
         )
 
-      case 4: // Keywords
+      case 3: // Keywords
         return (
           <div className="space-y-6">
             <div>
@@ -591,7 +484,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
           </div>
         )
 
-      case 5: // Review & Create
+      case 4: // Review & Create
         return (
           <div className="space-y-6">
             <div>
@@ -604,8 +497,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                     <p>{campaignData.name}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-600">Ad Group Name</Label>
-                    <p>{campaignData.adGroupName}</p>
+                    <Label className="text-sm font-medium text-gray-600">Campaign Type</Label>
+                    <p>Search Campaign</p>
                   </div>
                 </div>
 
@@ -616,7 +509,18 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Bidding Strategy</Label>
-                    <p>{campaignData.biddingStrategy.replace(/_/g, ' ')}</p>
+                    <p>Maximize Conversions</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">Ad Group Name</Label>
+                    <p>Ad group1</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">Start Date</Label>
+                    <p>Today ({new Date().toLocaleDateString()})</p>
                   </div>
                 </div>
 
