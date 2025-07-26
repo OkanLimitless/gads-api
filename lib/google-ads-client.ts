@@ -719,8 +719,10 @@ export async function createCampaign(
         'FR': 2250  // France
       }
 
-      const locationOperations = campaignData.locations.map(location => ({
-        create: {
+      const locationMutateOperations = campaignData.locations.map(location => ({
+        entity: "campaign_criterion",
+        operation: "create",
+        resource: {
           campaign: campaignResourceName,
           location: {
             geo_target_constant: `geoTargetConstants/${locationCriteriaMap[location] || 2840}`
@@ -728,7 +730,19 @@ export async function createCampaign(
         }
       }))
 
-      await customer.campaignCriteria.create(locationOperations)
+      const locationResponse = await customer.mutateResources(locationMutateOperations)
+      
+      // Handle response format for location targeting
+      let locationResults
+      if (locationResponse.mutate_operation_responses) {
+        locationResults = locationResponse.mutate_operation_responses.map(resp => resp.campaign_criterion_result)
+      } else if (locationResponse.results) {
+        locationResults = locationResponse.results
+      } else {
+        console.error('Invalid location targeting response:', locationResponse)
+        throw new Error('Failed to create location targeting - invalid API response')
+      }
+      
       console.log(`✅ Added location targeting for: ${campaignData.locations.join(', ')}`)
     }
 
@@ -743,16 +757,30 @@ export async function createCampaign(
         'it': 1004  // Italian
       }
 
-      const languageOperation = {
-        create: {
+      const languageMutateOperations = [{
+        entity: "campaign_criterion",
+        operation: "create",
+        resource: {
           campaign: campaignResourceName,
           language: {
             language_constant: `languageConstants/${languageCriteriaMap[campaignData.languageCode] || 1000}`
           }
         }
-      }
+      }]
 
-      await customer.campaignCriteria.create([languageOperation])
+      const languageResponse = await customer.mutateResources(languageMutateOperations)
+      
+      // Handle response format for language targeting
+      let languageResults
+      if (languageResponse.mutate_operation_responses) {
+        languageResults = languageResponse.mutate_operation_responses.map(resp => resp.campaign_criterion_result)
+      } else if (languageResponse.results) {
+        languageResults = languageResponse.results
+      } else {
+        console.error('Invalid language targeting response:', languageResponse)
+        throw new Error('Failed to create language targeting - invalid API response')
+      }
+      
       console.log(`✅ Added language targeting: ${campaignData.languageCode}`)
     }
 
