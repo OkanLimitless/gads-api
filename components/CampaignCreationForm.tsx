@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Target, DollarSign, Calendar, Settings, Globe, Edit, Plus, Trash2 } from 'lucide-react'
+import TemplateManager from './TemplateManager'
 
 interface CampaignCreationFormProps {
   selectedAccount: {
@@ -43,6 +44,15 @@ interface CampaignData {
   languageCode: string
 }
 
+interface CampaignTemplate {
+  id: string
+  name: string
+  description: string
+  data: Omit<CampaignData, 'name'> // Template doesn't include campaign name
+  createdAt: string
+  updatedAt: string
+}
+
 const STEP_TITLES = [
   'Campaign Setup',
   'Targeting',
@@ -57,6 +67,13 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
   const [isSuccess, setIsSuccess] = useState(false)
   const [successData, setSuccessData] = useState<any>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [showTemplateChoice, setShowTemplateChoice] = useState(true)
+  const [templates, setTemplates] = useState<CampaignTemplate[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<CampaignTemplate | null>(null)
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [templateDescription, setTemplateDescription] = useState('')
+  const [showTemplateManager, setShowTemplateManager] = useState(false)
   
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
@@ -68,6 +85,56 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     locations: ['US'],
     languageCode: 'en'
   })
+
+  // Load templates from localStorage on component mount
+  useEffect(() => {
+    const savedTemplates = localStorage.getItem('campaignTemplates')
+    if (savedTemplates) {
+      setTemplates(JSON.parse(savedTemplates))
+    }
+  }, [])
+
+  // Save templates to localStorage
+  const saveTemplates = (newTemplates: CampaignTemplate[]) => {
+    localStorage.setItem('campaignTemplates', JSON.stringify(newTemplates))
+    setTemplates(newTemplates)
+  }
+
+  // Load template data into form
+  const loadTemplate = (template: CampaignTemplate) => {
+    setCampaignData(prev => ({
+      ...template.data,
+      name: prev.name // Keep the campaign name separate
+    }))
+    setSelectedTemplate(template)
+    setShowTemplateChoice(false)
+  }
+
+  // Save current form data as template
+  const saveAsTemplate = (templateName: string, templateDescription: string) => {
+    const template: CampaignTemplate = {
+      id: Date.now().toString(),
+      name: templateName,
+      description: templateDescription,
+      data: {
+        budget: campaignData.budget,
+        finalUrl: campaignData.finalUrl,
+        path1: campaignData.path1,
+        path2: campaignData.path2,
+        headlines: campaignData.headlines,
+        descriptions: campaignData.descriptions,
+        keywords: campaignData.keywords,
+        locations: campaignData.locations,
+        languageCode: campaignData.languageCode
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    
+    const newTemplates = [...templates, template]
+    saveTemplates(newTemplates)
+    return template
+  }
 
   const validateStep = (step: number): boolean => {
     const newErrors: Record<string, string> = {}
@@ -235,6 +302,126 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               </p>
               <Button onClick={onBack} className="w-full">
                 Create Another Campaign
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Template manager screen
+  if (showTemplateManager) {
+    return (
+      <TemplateManager
+        templates={templates}
+        onSaveTemplates={saveTemplates}
+        onLoadTemplate={(template) => {
+          loadTemplate(template)
+          setShowTemplateManager(false)
+        }}
+        onClose={() => setShowTemplateManager(false)}
+      />
+    )
+  }
+
+  // Template choice screen
+  if (showTemplateChoice) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl flex items-center justify-center">
+              <Target className="h-6 w-6 mr-2 text-blue-600" />
+              Create New Campaign
+            </CardTitle>
+            <CardDescription>
+              Choose how you'd like to create your campaign
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Use Template */}
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <Settings className="h-5 w-5 mr-2 text-purple-600" />
+                    Use Template
+                  </CardTitle>
+                  <CardDescription>
+                    Start with a pre-configured template to save time
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {templates.length > 0 ? (
+                    <>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {templates.slice(0, 3).map((template) => (
+                          <div
+                            key={template.id}
+                            className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                            onClick={() => loadTemplate(template)}
+                          >
+                            <div className="font-medium">{template.name}</div>
+                            <div className="text-sm text-gray-600">{template.description}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Budget: ${template.data.budget} • {template.data.keywords.filter(k => k.trim()).length} keywords
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {templates.length > 3 && (
+                        <p className="text-xs text-gray-500 text-center">
+                          And {templates.length - 3} more templates...
+                        </p>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        className="w-full mt-3"
+                        onClick={() => setShowTemplateManager(true)}
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Manage All Templates
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Settings className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                      <p>No templates saved yet</p>
+                      <p className="text-sm">Create a campaign first to save as template</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Create New */}
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setShowTemplateChoice(false)}>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <Plus className="h-5 w-5 mr-2 text-green-600" />
+                    Create New Campaign
+                  </CardTitle>
+                  <CardDescription>
+                    Start from scratch with a blank campaign
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center py-8">
+                    <Plus className="h-12 w-12 mx-auto mb-2 text-green-600" />
+                    <p className="font-medium">Build from scratch</p>
+                    <p className="text-sm text-gray-600">Full control over all campaign settings</p>
+                  </div>
+                  <Button className="w-full bg-green-600 hover:bg-green-700">
+                    Start Creating
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex justify-center mt-6">
+              <Button variant="outline" onClick={onBack}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
               </Button>
             </div>
           </CardContent>
@@ -552,6 +739,62 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   <p>{campaignData.keywords.filter(k => k.trim()).join(', ')}</p>
                 </div>
               </div>
+
+              {/* Save as Template Section */}
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-blue-900">Save as Template</h4>
+                    <p className="text-sm text-blue-700">Save this configuration for future campaigns</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowSaveTemplate(!showSaveTemplate)}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    {showSaveTemplate ? 'Cancel' : 'Save Template'}
+                  </Button>
+                </div>
+
+                {showSaveTemplate && (
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <Label htmlFor="templateName">Template Name *</Label>
+                      <Input
+                        id="templateName"
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        placeholder="e.g., E-commerce Template"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="templateDescription">Description</Label>
+                      <Input
+                        id="templateDescription"
+                        value={templateDescription}
+                        onChange={(e) => setTemplateDescription(e.target.value)}
+                        placeholder="e.g., Template for e-commerce product campaigns"
+                      />
+                    </div>
+                    <Button
+                      onClick={() => {
+                        if (templateName.trim()) {
+                          saveAsTemplate(templateName, templateDescription)
+                          setTemplateName('')
+                          setTemplateDescription('')
+                          setShowSaveTemplate(false)
+                          // Show success message or toast here if desired
+                        }
+                      }}
+                      disabled={!templateName.trim()}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      Save Template
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )
@@ -575,14 +818,25 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               <span className="block mt-1 text-sm text-gray-500">
                 Account ID: {selectedAccount.id}
               </span>
+              {selectedTemplate && (
+                <span className="block mt-1 text-sm text-purple-600">
+                  📋 Using template: <strong>{selectedTemplate.name}</strong>
+                </span>
+              )}
             </CardDescription>
           </div>
-          {onBack && (
-            <Button variant="outline" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowTemplateManager(true)}>
+              <Settings className="h-4 w-4 mr-2" />
+              Templates
             </Button>
-          )}
+            {onBack && (
+              <Button variant="outline" onClick={onBack}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Progress Indicator */}
