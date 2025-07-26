@@ -454,7 +454,6 @@ export async function createCampaign(
     console.log('💰 Creating campaign budget...')
     const budgetOperation = {
       create: {
-        name: `Budget for ${campaignData.name}`,
         amount_micros: campaignData.budgetAmountMicros,
         delivery_method: 'STANDARD',
         explicitly_shared: false,
