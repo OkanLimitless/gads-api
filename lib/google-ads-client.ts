@@ -549,15 +549,19 @@ export async function createCampaign(
 
     // Step 3: Create Ad Group
     console.log('👥 Creating ad group...')
+    console.log('🔗 Campaign resource name for ad group:', campaignResourceName)
+    
     const adGroupOperation = {
       create: {
         name: campaignData.adGroupName,
         campaign: campaignResourceName,
-        status: 'ENABLED',
-        type: 'SEARCH_STANDARD',
+        status: enums.AdGroupStatus.ENABLED,
+        type: enums.AdGroupType.SEARCH_STANDARD,
         cpc_bid_micros: campaignData.defaultBidMicros || 1000000, // Default $1 bid
       }
     }
+    
+    console.log('📋 Ad group operation:', JSON.stringify(adGroupOperation, null, 2))
 
     const adGroupResponse = await customer.adGroups.create([adGroupOperation])
     
@@ -588,7 +592,7 @@ export async function createCampaign(
     const adOperation = {
       create: {
         ad_group: adGroupResourceName,
-        status: 'ENABLED',
+        status: enums.AdGroupAdStatus.ENABLED,
         ad: responsiveSearchAd
       }
     }
@@ -624,10 +628,10 @@ export async function createCampaign(
     const keywordOperations = processedKeywords.map(keyword => ({
       create: {
         ad_group: adGroupResourceName,
-        status: 'ENABLED',
+        status: enums.AdGroupCriterionStatus.ENABLED,
         keyword: {
           text: keyword,
-          match_type: 'BROAD'
+          match_type: enums.KeywordMatchType.BROAD
         },
         cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
       }
