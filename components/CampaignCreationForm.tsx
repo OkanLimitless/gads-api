@@ -87,8 +87,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     languageCode: 'en',
     networkSettings: {
       targetGoogleSearch: true,
-      targetSearchNetwork: true,
-      targetContentNetwork: false
+      targetSearchNetwork: false, // Default unchecked for search partners
+      targetContentNetwork: false // Default unchecked for display network
     }
   })
 
@@ -566,7 +566,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                     <Input
                       value={keyword}
                       onChange={(e) => updateArrayItem('keywords', index, e.target.value)}
-                      placeholder={`Keyword ${index + 1}`}
+                      placeholder={index === 0 ? "Enter keywords (comma-separated or one per field)" : `Keyword ${index + 1}`}
                     />
                     {campaignData.keywords.length > 1 && (
                       <Button
@@ -583,7 +583,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               </div>
               {errors.keywords && <p className="text-sm text-red-500 mt-1">{errors.keywords}</p>}
               <p className="text-sm text-gray-500 mt-2">
-                Enter keywords that are relevant to your business. You can use match types like "exact match", [broad match], and +modified +broad +match.
+                Enter keywords relevant to your business. You can enter multiple keywords separated by commas in one field, or use separate fields. Match types: "exact match", [broad match], +modified +broad +match.
               </p>
             </div>
           </div>

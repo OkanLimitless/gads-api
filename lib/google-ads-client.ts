@@ -469,8 +469,8 @@ export async function createCampaign(
       end_date: campaignData.endDate,
       network_settings: {
         target_google_search: campaignData.networkSettings?.targetGoogleSearch ?? true,
-        target_search_network: campaignData.networkSettings?.targetSearchNetwork ?? true,
-        target_content_network: campaignData.networkSettings?.targetContentNetwork ?? false,
+        target_search_network: campaignData.networkSettings?.targetSearchNetwork ?? false, // Default false for search partners
+        target_content_network: campaignData.networkSettings?.targetContentNetwork ?? false, // Default false for display network
         target_partner_search_network: false,
       }
     }
@@ -512,7 +512,16 @@ export async function createCampaign(
       },
     ]
 
+    console.log('📊 Operations to execute:', JSON.stringify(operations, null, 2))
     const response = await customer.mutateResources(operations)
+    console.log('📋 API Response:', JSON.stringify(response, null, 2))
+    
+    // Check if response has results
+    if (!response || !response.results || response.results.length < 2) {
+      console.error('Invalid response from Google Ads API:', response)
+      throw new Error('Failed to create campaign budget and campaign - invalid API response')
+    }
+    
     const budgetResult = response.results[0]
     const campaignResult = response.results[1]
     const budgetId = budgetResult.resource_name.split('/')[3]
@@ -533,6 +542,12 @@ export async function createCampaign(
     }
 
     const adGroupResponse = await customer.adGroups.create([adGroupOperation])
+    
+    if (!adGroupResponse || !adGroupResponse.results || adGroupResponse.results.length === 0) {
+      console.error('Invalid ad group response:', adGroupResponse)
+      throw new Error('Failed to create ad group - invalid API response')
+    }
+    
     const adGroupResourceName = adGroupResponse.results[0].resource_name
     const adGroupId = adGroupResourceName.split('/')[3]
     console.log(`✅ Created ad group: ${adGroupId}`)
@@ -561,26 +576,57 @@ export async function createCampaign(
     }
 
     const adResponse = await customer.adGroupAds.create([adOperation])
+    
+    if (!adResponse || !adResponse.results || adResponse.results.length === 0) {
+      console.error('Invalid ad response:', adResponse)
+      throw new Error('Failed to create responsive search ad - invalid API response')
+    }
+    
     const adResourceName = adResponse.results[0].resource_name
     const adId = adResourceName.split('/')[3]
     console.log(`✅ Created responsive search ad: ${adId}`)
 
     // Step 5: Add Keywords
     console.log('🔑 Adding keywords...')
-    const keywordOperations = campaignData.keywords.map(keyword => ({
+    
+    // Process keywords - handle both array of strings and comma-separated strings
+    const processedKeywords: string[] = []
+    campaignData.keywords.forEach(keyword => {
+      if (keyword.includes(',')) {
+        // Split comma-separated keywords
+        const splitKeywords = keyword.split(',').map(k => k.trim()).filter(k => k.length > 0)
+        processedKeywords.push(...splitKeywords)
+      } else if (keyword.trim().length > 0) {
+        processedKeywords.push(keyword.trim())
+      }
+    })
+    
+    console.log(`📝 Processed keywords:`, processedKeywords)
+    
+    const keywordOperations = processedKeywords.map(keyword => ({
       create: {
         ad_group: adGroupResourceName,
         status: 'ENABLED',
         keyword: {
-          text: keyword.trim(),
+          text: keyword,
           match_type: 'BROAD'
         },
         cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
       }
     }))
 
-    const keywordsResponse = await customer.adGroupCriteria.create(keywordOperations)
-    console.log(`✅ Added ${keywordsResponse.results.length} keywords`)
+    if (keywordOperations.length > 0) {
+      const keywordsResponse = await customer.adGroupCriteria.create(keywordOperations)
+      
+      if (!keywordsResponse || !keywordsResponse.results) {
+        console.error('Invalid keywords response:', keywordsResponse)
+        throw new Error('Failed to create keywords - invalid API response')
+      }
+      
+      console.log(`✅ Added ${keywordsResponse.results.length} keywords`)
+    } else {
+      console.log('⚠️ No keywords to add')
+    }
 
     // Step 6: Add Location Targeting (if specified)
     if (campaignData.locations && campaignData.locations.length > 0) {
