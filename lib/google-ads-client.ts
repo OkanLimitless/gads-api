@@ -547,34 +547,52 @@ export async function createCampaign(
     const campaignResourceName = campaignResult.resource_name
     console.log(`✅ Created budget: ${budgetId} and campaign: ${campaignId}`)
 
-    // Step 3: Create Ad Group
+    // Step 3: Create Ad Group using mutateResources
     console.log('👥 Creating ad group...')
     console.log('🔗 Campaign resource name for ad group:', campaignResourceName)
     
-    const adGroupOperation = {
-      create: {
-        name: campaignData.adGroupName,
-        campaign: campaignResourceName,
-        status: enums.AdGroupStatus.ENABLED,
-        type: enums.AdGroupType.SEARCH_STANDARD,
-        cpc_bid_micros: campaignData.defaultBidMicros || 1000000, // Default $1 bid
+    const adGroupOperations = [
+      {
+        entity: "ad_group",
+        operation: "create",
+        resource: {
+          name: campaignData.adGroupName,
+          campaign: campaignResourceName,
+          status: enums.AdGroupStatus.ENABLED,
+          type: enums.AdGroupType.SEARCH_STANDARD,
+          cpc_bid_micros: campaignData.defaultBidMicros || 1000000, // Default $1 bid
+        }
       }
-    }
+    ]
     
-    console.log('📋 Ad group operation:', JSON.stringify(adGroupOperation, null, 2))
+    console.log('📋 Ad group operations:', JSON.stringify(adGroupOperations, null, 2))
 
-    const adGroupResponse = await customer.adGroups.create([adGroupOperation])
+    const adGroupResponse = await customer.mutateResources(adGroupOperations)
     
-    if (!adGroupResponse || !adGroupResponse.results || adGroupResponse.results.length === 0) {
+    // Handle both old and new response formats for ad groups
+    let adGroupResult
+    if (adGroupResponse.mutate_operation_responses) {
+      if (!adGroupResponse.mutate_operation_responses || adGroupResponse.mutate_operation_responses.length === 0) {
+        console.error('Invalid ad group response:', adGroupResponse)
+        throw new Error('Failed to create ad group - invalid API response')
+      }
+      adGroupResult = adGroupResponse.mutate_operation_responses[0].ad_group_result
+    } else if (adGroupResponse.results) {
+      if (!adGroupResponse.results || adGroupResponse.results.length === 0) {
+        console.error('Invalid ad group response:', adGroupResponse)
+        throw new Error('Failed to create ad group - invalid API response')
+      }
+      adGroupResult = adGroupResponse.results[0]
+    } else {
       console.error('Invalid ad group response:', adGroupResponse)
       throw new Error('Failed to create ad group - invalid API response')
     }
     
-    const adGroupResourceName = adGroupResponse.results[0].resource_name
+    const adGroupResourceName = adGroupResult.resource_name
     const adGroupId = adGroupResourceName.split('/')[3]
     console.log(`✅ Created ad group: ${adGroupId}`)
 
-    // Step 4: Create Responsive Search Ad
+    // Step 4: Create Responsive Search Ad using mutateResources
     console.log('📝 Creating responsive search ad...')
     const responsiveSearchAd = {
       responsive_search_ad: {
@@ -589,22 +607,40 @@ export async function createCampaign(
       })
     }
 
-    const adOperation = {
-      create: {
-        ad_group: adGroupResourceName,
-        status: enums.AdGroupAdStatus.ENABLED,
-        ad: responsiveSearchAd
+    const adOperations = [
+      {
+        entity: "ad_group_ad",
+        operation: "create",
+        resource: {
+          ad_group: adGroupResourceName,
+          status: enums.AdGroupAdStatus.ENABLED,
+          ad: responsiveSearchAd
+        }
       }
-    }
+    ]
 
-    const adResponse = await customer.adGroupAds.create([adOperation])
+    const adResponse = await customer.mutateResources(adOperations)
     
-    if (!adResponse || !adResponse.results || adResponse.results.length === 0) {
+    // Handle both old and new response formats for ads
+    let adResult
+    if (adResponse.mutate_operation_responses) {
+      if (!adResponse.mutate_operation_responses || adResponse.mutate_operation_responses.length === 0) {
+        console.error('Invalid ad response:', adResponse)
+        throw new Error('Failed to create responsive search ad - invalid API response')
+      }
+      adResult = adResponse.mutate_operation_responses[0].ad_group_ad_result
+    } else if (adResponse.results) {
+      if (!adResponse.results || adResponse.results.length === 0) {
+        console.error('Invalid ad response:', adResponse)
+        throw new Error('Failed to create responsive search ad - invalid API response')
+      }
+      adResult = adResponse.results[0]
+    } else {
       console.error('Invalid ad response:', adResponse)
       throw new Error('Failed to create responsive search ad - invalid API response')
     }
     
-    const adResourceName = adResponse.results[0].resource_name
+    const adResourceName = adResult.resource_name
     const adId = adResourceName.split('/')[3]
     console.log(`✅ Created responsive search ad: ${adId}`)
 
@@ -638,14 +674,35 @@ export async function createCampaign(
     }))
 
     if (keywordOperations.length > 0) {
-      const keywordsResponse = await customer.adGroupCriteria.create(keywordOperations)
+      // Convert keyword operations to mutateResources format
+      const keywordMutateOperations = keywordOperations.map(keywordOp => ({
+        entity: "ad_group_criterion",
+        operation: "create",
+        resource: keywordOp.create
+      }))
       
-      if (!keywordsResponse || !keywordsResponse.results) {
+      const keywordsResponse = await customer.mutateResources(keywordMutateOperations)
+      
+      // Handle both old and new response formats for keywords
+      let keywordResults
+      if (keywordsResponse.mutate_operation_responses) {
+        if (!keywordsResponse.mutate_operation_responses) {
+          console.error('Invalid keywords response:', keywordsResponse)
+          throw new Error('Failed to create keywords - invalid API response')
+        }
+        keywordResults = keywordsResponse.mutate_operation_responses.map(resp => resp.ad_group_criterion_result)
+      } else if (keywordsResponse.results) {
+        if (!keywordsResponse.results) {
+          console.error('Invalid keywords response:', keywordsResponse)
+          throw new Error('Failed to create keywords - invalid API response')
+        }
+        keywordResults = keywordsResponse.results
+      } else {
         console.error('Invalid keywords response:', keywordsResponse)
         throw new Error('Failed to create keywords - invalid API response')
       }
       
-      console.log(`✅ Added ${keywordsResponse.results.length} keywords`)
+      console.log(`✅ Added ${keywordResults.length} keywords`)
     } else {
       console.log('⚠️ No keywords to add')
     }
