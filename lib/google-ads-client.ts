@@ -457,8 +457,6 @@ export async function createCampaign(
         amount_micros: campaignData.budgetAmountMicros,
         delivery_method: 'STANDARD',
         explicitly_shared: false,
-        type: 'STANDARD',
-        period: 'DAILY',
       }
     }
 
