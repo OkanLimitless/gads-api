@@ -450,63 +450,75 @@ export async function createCampaign(
     
     console.log(`🔑 Using MCC ${knownMCCId} as login customer for client ${customerId}`)
 
-    // Step 1: Create Campaign Budget
-    console.log('💰 Creating campaign budget...')
-    const budgetOperation = {
-      create: {
-        amount_micros: campaignData.budgetAmountMicros,
-        delivery_method: 'STANDARD',
-        explicitly_shared: false,
-      }
-    }
-
-    const budgetResponse = await customer.campaignBudgets.create([budgetOperation])
-    const budgetResourceName = budgetResponse.results[0].resource_name
-    const budgetId = budgetResourceName.split('/')[3]
-    console.log(`✅ Created budget: ${budgetId}`)
-
-    // Step 2: Create Campaign
-    console.log('📊 Creating campaign...')
-    const campaignOperation = {
-      create: {
-        name: campaignData.name,
-        advertising_channel_type: campaignData.campaignType,
-        status: 'PAUSED', // Start paused for safety
-        campaign_budget: budgetResourceName,
-        start_date: campaignData.startDate || new Date().toISOString().split('T')[0].replace(/-/g, ''),
-        end_date: campaignData.endDate,
-        network_settings: {
-          target_google_search: campaignData.networkSettings?.targetGoogleSearch ?? true,
-          target_search_network: campaignData.networkSettings?.targetSearchNetwork ?? true,
-          target_content_network: campaignData.networkSettings?.targetContentNetwork ?? false,
-          target_partner_search_network: false,
-        }
+    // Import required modules for atomic operations
+    const { resources, enums, ResourceNames } = require('google-ads-api')
+    
+    // Create a resource name with a temporary resource id (-1)
+    const budgetResourceName = ResourceNames.campaignBudget(customerId, "-1")
+    
+    // Step 1: Create Campaign Budget and Campaign atomically
+    console.log('💰 Creating campaign budget and campaign atomically...')
+    
+    // Prepare campaign resource
+    const campaignResource = {
+      name: campaignData.name,
+      advertising_channel_type: enums.AdvertisingChannelType.SEARCH,
+      status: enums.CampaignStatus.PAUSED, // Start paused for safety
+      campaign_budget: budgetResourceName,
+      start_date: campaignData.startDate || new Date().toISOString().split('T')[0].replace(/-/g, ''),
+      end_date: campaignData.endDate,
+      network_settings: {
+        target_google_search: campaignData.networkSettings?.targetGoogleSearch ?? true,
+        target_search_network: campaignData.networkSettings?.targetSearchNetwork ?? true,
+        target_content_network: campaignData.networkSettings?.targetContentNetwork ?? false,
+        target_partner_search_network: false,
       }
     }
 
     // Add bidding strategy
     if (campaignData.biddingStrategy === 'TARGET_CPA' && campaignData.targetCpa) {
-      campaignOperation.create.target_cpa = {
+      campaignResource.target_cpa = {
         target_cpa_micros: campaignData.targetCpa
       }
     } else if (campaignData.biddingStrategy === 'TARGET_ROAS' && campaignData.targetRoas) {
-      campaignOperation.create.target_roas = {
+      campaignResource.target_roas = {
         target_roas: campaignData.targetRoas
       }
     } else if (campaignData.biddingStrategy === 'MAXIMIZE_CONVERSIONS') {
-      campaignOperation.create.maximize_conversions = {}
+      campaignResource.maximize_conversions = {}
     } else if (campaignData.biddingStrategy === 'MAXIMIZE_CONVERSION_VALUE') {
-      campaignOperation.create.maximize_conversion_value = {}
+      campaignResource.maximize_conversion_value = {}
     } else {
-      campaignOperation.create.manual_cpc = {
+      campaignResource.manual_cpc = {
         enhanced_cpc_enabled: campaignData.biddingStrategy === 'ENHANCED_CPC'
       }
     }
+    
+    const operations = [
+      {
+        entity: "campaign_budget",
+        operation: "create",
+        resource: {
+          resource_name: budgetResourceName,
+          amount_micros: campaignData.budgetAmountMicros,
+          delivery_method: enums.BudgetDeliveryMethod.STANDARD,
+          explicitly_shared: false,
+        },
+      },
+      {
+        entity: "campaign",
+        operation: "create",
+        resource: campaignResource,
+      },
+    ]
 
-    const campaignResponse = await customer.campaigns.create([campaignOperation])
-    const campaignResourceName = campaignResponse.results[0].resource_name
-    const campaignId = campaignResourceName.split('/')[3]
-    console.log(`✅ Created campaign: ${campaignId}`)
+    const response = await customer.mutateResources(operations)
+    const budgetResult = response.results[0]
+    const campaignResult = response.results[1]
+    const budgetId = budgetResult.resource_name.split('/')[3]
+    const campaignId = campaignResult.resource_name.split('/')[3]
+    const campaignResourceName = campaignResult.resource_name
+    console.log(`✅ Created budget: ${budgetId} and campaign: ${campaignId}`)
 
     // Step 3: Create Ad Group
     console.log('👥 Creating ad group...')
