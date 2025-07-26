@@ -516,14 +516,32 @@ export async function createCampaign(
     const response = await customer.mutateResources(operations)
     console.log('📋 API Response:', JSON.stringify(response, null, 2))
     
-    // Check if response has results
-    if (!response || !response.results || response.results.length < 2) {
+    // Check if response has results (handle both old and new API response formats)
+    let budgetResult, campaignResult
+    
+    if (response.mutate_operation_responses) {
+      // New API response format
+      if (!response.mutate_operation_responses || response.mutate_operation_responses.length < 2) {
+        console.error('Invalid response from Google Ads API:', response)
+        throw new Error('Failed to create campaign budget and campaign - invalid API response')
+      }
+      
+      budgetResult = response.mutate_operation_responses[0].campaign_budget_result
+      campaignResult = response.mutate_operation_responses[1].campaign_result
+    } else if (response.results) {
+      // Old API response format
+      if (!response.results || response.results.length < 2) {
+        console.error('Invalid response from Google Ads API:', response)
+        throw new Error('Failed to create campaign budget and campaign - invalid API response')
+      }
+      
+      budgetResult = response.results[0]
+      campaignResult = response.results[1]
+    } else {
       console.error('Invalid response from Google Ads API:', response)
       throw new Error('Failed to create campaign budget and campaign - invalid API response')
     }
     
-    const budgetResult = response.results[0]
-    const campaignResult = response.results[1]
     const budgetId = budgetResult.resource_name.split('/')[3]
     const campaignId = campaignResult.resource_name.split('/')[3]
     const campaignResourceName = campaignResult.resource_name
