@@ -26,9 +26,6 @@ interface CampaignData {
   name: string
   budget: number
   biddingStrategy: string
-  campaignType: string
-  startDate: string
-  endDate?: string
   
   // Ad Group Settings
   adGroupName: string
@@ -50,11 +47,6 @@ interface CampaignData {
   
   // Other Settings
   languageCode: string
-  networkSettings: {
-    targetGoogleSearch: boolean
-    targetSearchNetwork: boolean
-    targetContentNetwork: boolean
-  }
 }
 
 const STEP_TITLES = [
@@ -69,27 +61,22 @@ const STEP_TITLES = [
 export default function CampaignCreationForm({ selectedAccount, onSuccess, onError, onBack }: CampaignCreationFormProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [successData, setSuccessData] = useState<any>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
-    budget: 1000,
+    budget: 10, // Budget in dollars (will be converted to micros in backend)
     biddingStrategy: 'MAXIMIZE_CONVERSIONS',
-    campaignType: 'SEARCH',
-    startDate: new Date().toISOString().split('T')[0],
     adGroupName: '',
-    defaultBid: 100,
+    defaultBid: 1, // Default bid in dollars (will be converted to micros in backend)
     finalUrl: '',
     headlines: ['', '', ''],
     descriptions: ['', ''],
     keywords: [''],
     locations: ['US'],
-    languageCode: 'en',
-    networkSettings: {
-      targetGoogleSearch: true,
-      targetSearchNetwork: false, // Default unchecked for search partners
-      targetContentNetwork: false // Default unchecked for display network
-    }
+    languageCode: 'en'
   })
 
   const validateStep = (step: number): boolean => {
@@ -102,8 +89,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
         break
       
       case 1: // Budget & Bidding
-        if (campaignData.budget < 100) newErrors.budget = 'Minimum budget is $1.00'
-        if (campaignData.defaultBid < 10) newErrors.defaultBid = 'Minimum bid is $0.10'
+        if (campaignData.budget < 1) newErrors.budget = 'Minimum budget is $1.00'
+        if (campaignData.defaultBid < 0.1) newErrors.defaultBid = 'Minimum bid is $0.10'
         break
       
       case 2: // Targeting
@@ -185,13 +172,12 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
         body: JSON.stringify({
           campaignData: {
             name: campaignData.name,
-            budgetAmountMicros: campaignData.budget * 10000, // Convert to micros
+            budgetAmountMicros: campaignData.budget * 1000000, // Convert dollars to micros
             biddingStrategy: campaignData.biddingStrategy,
-            campaignType: campaignData.campaignType,
-            startDate: campaignData.startDate,
-            endDate: campaignData.endDate,
+            campaignType: 'SEARCH', // Hardcoded to SEARCH
+            startDate: new Date().toISOString().split('T')[0].replace(/-/g, ''), // Today's date in YYYYMMDD format
             adGroupName: campaignData.adGroupName,
-            defaultBidMicros: campaignData.defaultBid * 10000, // Convert to micros
+            defaultBidMicros: campaignData.defaultBid * 1000000, // Convert dollars to micros
             finalUrl: campaignData.finalUrl,
             finalMobileUrl: campaignData.finalMobileUrl,
             path1: campaignData.path1,
@@ -201,7 +187,11 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
             keywords: campaignData.keywords.filter(k => k.trim().length > 0),
             locations: campaignData.locations,
             languageCode: campaignData.languageCode,
-            networkSettings: campaignData.networkSettings
+            networkSettings: {
+              targetGoogleSearch: true,
+              targetSearchNetwork: false,
+              targetContentNetwork: false
+            }
           }
         })
       })
@@ -209,6 +199,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
       const result = await response.json()
       
       if (result.success) {
+        setIsSuccess(true)
+        setSuccessData(result)
         onSuccess?.(result)
       } else {
         onError?.(result.error || 'Failed to create campaign')
@@ -218,6 +210,53 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Success screen
+  if (isSuccess) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl text-green-600">Campaign Created Successfully!</CardTitle>
+            <CardDescription>
+              Your campaign "{campaignData.name}" has been created and is ready to go.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <div className="flex justify-between">
+                <span className="font-medium">Campaign ID:</span>
+                <span className="font-mono text-sm">{successData?.campaignId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Budget ID:</span>
+                <span className="font-mono text-sm">{successData?.budgetId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Ad Group ID:</span>
+                <span className="font-mono text-sm">{successData?.adGroupId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Ad ID:</span>
+                <span className="font-mono text-sm">{successData?.adId}</span>
+              </div>
+            </div>
+            <div className="text-center space-y-2">
+              <p className="text-sm text-gray-600">
+                Your campaign is now live and will start showing ads based on your settings.
+              </p>
+              <Button onClick={onBack} className="w-full">
+                Create Another Campaign
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   const renderStep = () => {
@@ -291,17 +330,17 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
         return (
           <div className="space-y-6">
             <div>
-              <Label htmlFor="budget">Daily Budget (cents) *</Label>
+              <Label htmlFor="budget">Daily Budget ($) *</Label>
               <Input
                 id="budget"
                 type="number"
-                min="100"
-                step="100"
+                min="1"
+                step="1"
                 value={campaignData.budget}
-                onChange={(e) => updateCampaignData('budget', parseInt(e.target.value) || 0)}
+                onChange={(e) => updateCampaignData('budget', parseFloat(e.target.value) || 0)}
                 className={errors.budget ? 'border-red-500' : ''}
               />
-              <p className="text-sm text-gray-500 mt-1">Amount in cents (e.g., 1000 = $10.00)</p>
+              <p className="text-sm text-gray-500 mt-1">Amount in dollars (e.g., 10 = $10.00 per day)</p>
               {errors.budget && <p className="text-sm text-red-500 mt-1">{errors.budget}</p>}
             </div>
 
@@ -323,17 +362,17 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
             </div>
 
             <div>
-              <Label htmlFor="defaultBid">Default Bid (cents) *</Label>
+              <Label htmlFor="defaultBid">Default Bid ($) *</Label>
               <Input
                 id="defaultBid"
                 type="number"
-                min="10"
-                step="10"
+                min="0.1"
+                step="0.1"
                 value={campaignData.defaultBid}
-                onChange={(e) => updateCampaignData('defaultBid', parseInt(e.target.value) || 0)}
+                onChange={(e) => updateCampaignData('defaultBid', parseFloat(e.target.value) || 0)}
                 className={errors.defaultBid ? 'border-red-500' : ''}
               />
-              <p className="text-sm text-gray-500 mt-1">Amount in cents (e.g., 100 = $1.00)</p>
+              <p className="text-sm text-gray-500 mt-1">Amount in dollars (e.g., 1 = $1.00 per click)</p>
               {errors.defaultBid && <p className="text-sm text-red-500 mt-1">{errors.defaultBid}</p>}
             </div>
           </div>
@@ -376,44 +415,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               </Select>
             </div>
 
-            <div>
-              <Label>Network Settings</Label>
-              <div className="space-y-3 mt-2">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={campaignData.networkSettings.targetGoogleSearch}
-                    onChange={(e) => updateCampaignData('networkSettings', {
-                      ...campaignData.networkSettings,
-                      targetGoogleSearch: e.target.checked
-                    })}
-                  />
-                  <span>Google Search</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={campaignData.networkSettings.targetSearchNetwork}
-                    onChange={(e) => updateCampaignData('networkSettings', {
-                      ...campaignData.networkSettings,
-                      targetSearchNetwork: e.target.checked
-                    })}
-                  />
-                  <span>Search Partners</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={campaignData.networkSettings.targetContentNetwork}
-                    onChange={(e) => updateCampaignData('networkSettings', {
-                      ...campaignData.networkSettings,
-                      targetContentNetwork: e.target.checked
-                    })}
-                  />
-                  <span>Display Network</span>
-                </label>
-              </div>
-            </div>
+
           </div>
         )
 
@@ -583,7 +585,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               </div>
               {errors.keywords && <p className="text-sm text-red-500 mt-1">{errors.keywords}</p>}
               <p className="text-sm text-gray-500 mt-2">
-                Enter keywords relevant to your business. You can enter multiple keywords separated by commas in one field, or use separate fields. Match types: "exact match", [broad match], +modified +broad +match.
+                Enter keywords relevant to your business. You can enter multiple keywords separated by commas in one field, or use separate fields. Match types: [exact match], "phrase match", broad match (default).
               </p>
             </div>
           </div>
@@ -610,7 +612,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Daily Budget</Label>
-                    <p>${(campaignData.budget / 100).toFixed(2)}</p>
+                    <p>${campaignData.budget.toFixed(2)}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Bidding Strategy</Label>

@@ -661,17 +661,37 @@ export async function createCampaign(
     
     console.log(`📝 Processed keywords:`, processedKeywords)
     
-    const keywordOperations = processedKeywords.map(keyword => ({
-      create: {
-        ad_group: adGroupResourceName,
-        status: enums.AdGroupCriterionStatus.ENABLED,
-        keyword: {
-          text: keyword,
-          match_type: enums.KeywordMatchType.BROAD
-        },
-        cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
+    // Process keywords to determine match type and clean text
+    const keywordOperations = processedKeywords.map(keyword => {
+      let keywordText = keyword
+      let matchType = enums.KeywordMatchType.BROAD // Default to broad match
+      
+      // Check for exact match keywords [keyword]
+      if (keyword.startsWith('[') && keyword.endsWith(']')) {
+        keywordText = keyword.slice(1, -1) // Remove brackets
+        matchType = enums.KeywordMatchType.EXACT
       }
-    }))
+      // Check for phrase match keywords "keyword"
+      else if (keyword.startsWith('"') && keyword.endsWith('"')) {
+        keywordText = keyword.slice(1, -1) // Remove quotes
+        matchType = enums.KeywordMatchType.PHRASE
+      }
+      // Otherwise it's broad match (default)
+      
+      console.log(`🎯 Keyword: "${keywordText}" - Match Type: ${matchType === enums.KeywordMatchType.EXACT ? 'EXACT' : matchType === enums.KeywordMatchType.PHRASE ? 'PHRASE' : 'BROAD'}`)
+      
+      return {
+        create: {
+          ad_group: adGroupResourceName,
+          status: enums.AdGroupCriterionStatus.ENABLED,
+          keyword: {
+            text: keywordText,
+            match_type: matchType
+          },
+          cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
+        }
+      }
+    })
 
     if (keywordOperations.length > 0) {
       // Convert keyword operations to mutateResources format
