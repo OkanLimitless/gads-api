@@ -573,24 +573,69 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
             </div>
 
             <div>
-              <Label>Ad Schedule Template (Optional)</Label>
+              <Label>Ad Schedule (Optional)</Label>
               <div className="space-y-3">
                 <Select 
                   value={campaignData.adScheduleTemplateId || 'none'} 
-                  onValueChange={(value) => updateCampaignData('adScheduleTemplateId', value === 'none' ? undefined : value)}
+                  onValueChange={(value) => {
+                    if (value === 'est_business_hours' || value === 'amsterdam_evening_rush') {
+                      // Handle built-in schedules
+                      updateCampaignData('adScheduleTemplateId', value)
+                    } else {
+                      updateCampaignData('adScheduleTemplateId', value === 'none' ? undefined : value)
+                    }
+                  }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select ad schedule template" />
+                    <SelectValue placeholder="Select ad schedule" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Schedule (Show ads all day)</SelectItem>
+                    <SelectItem value="est_business_hours">EST Business Hours (9 AM - 9 PM EST)</SelectItem>
+                    <SelectItem value="amsterdam_evening_rush">Amsterdam Evening Rush (11 PM - 3 AM AMS)</SelectItem>
                     {adScheduleTemplates.map((template) => (
                       <SelectItem key={template.id} value={template.id}>
-                        {template.name}
+                        {template.name} (Custom)
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                
+                {/* Schedule Description */}
+                {campaignData.adScheduleTemplateId && (
+                  <div className="p-3 bg-blue-50 rounded-lg text-sm">
+                    {campaignData.adScheduleTemplateId === 'est_business_hours' && (
+                      <div>
+                        <p className="font-medium text-blue-900">EST Business Hours Schedule</p>
+                        <p className="text-blue-700">All days: 00:00-03:00 and 15:00-00:00 (UTC)</p>
+                        <p className="text-blue-600 text-xs">Converts to 9 AM - 9 PM Eastern Time</p>
+                      </div>
+                    )}
+                    {campaignData.adScheduleTemplateId === 'amsterdam_evening_rush' && (
+                      <div>
+                        <p className="font-medium text-blue-900">Amsterdam Evening Rush Schedule</p>
+                        <p className="text-blue-700">All days: 23:00-00:00 and 00:00-03:00 (UTC)</p>
+                        <p className="text-blue-600 text-xs">Evening rush hours in Amsterdam timezone</p>
+                      </div>
+                    )}
+                    {campaignData.adScheduleTemplateId !== 'est_business_hours' && 
+                     campaignData.adScheduleTemplateId !== 'amsterdam_evening_rush' && (
+                      <div>
+                        {(() => {
+                          const template = adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId)
+                          return template ? (
+                            <div>
+                              <p className="font-medium text-blue-900">{template.name}</p>
+                              <p className="text-blue-700">{template.description}</p>
+                              <p className="text-blue-600 text-xs">{template.schedule.length} time slots configured</p>
+                            </div>
+                          ) : null
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Button 
                     type="button" 
@@ -599,23 +644,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                     onClick={() => setShowAdScheduleManager(true)}
                   >
                     <Settings className="h-4 w-4 mr-1" />
-                    Manage Schedules
+                    Manage Custom Schedules
                   </Button>
-                  {campaignData.adScheduleTemplateId && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        const template = adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId)
-                        if (template) {
-                          alert(`Schedule: ${template.description}\n\nTime slots: ${template.schedule.length} configured`)
-                        }
-                      }}
-                    >
-                      Preview Schedule
-                    </Button>
-                  )}
                 </div>
               </div>
             </div>
@@ -875,7 +905,11 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Ad Schedule</Label>
                     <p>
-                      {campaignData.adScheduleTemplateId 
+                      {campaignData.adScheduleTemplateId === 'est_business_hours' 
+                        ? 'EST Business Hours (9 AM - 9 PM EST)'
+                        : campaignData.adScheduleTemplateId === 'amsterdam_evening_rush'
+                        ? 'Amsterdam Evening Rush (11 PM - 3 AM AMS)'
+                        : campaignData.adScheduleTemplateId 
                         ? adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId)?.name || 'Custom Schedule'
                         : 'Show ads all day'
                       }

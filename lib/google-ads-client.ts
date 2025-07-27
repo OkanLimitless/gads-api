@@ -840,33 +840,118 @@ export async function createCampaign(
     }
 
     // Step 8: Add Ad Scheduling
-    if (campaignData.adScheduleTemplate && campaignData.adScheduleTemplate.schedule.length > 0) {
+    if (campaignData.adScheduleTemplateId) {
       console.log('⏰ Setting up ad scheduling...')
       
-      const adScheduleOperations = campaignData.adScheduleTemplate.schedule.map(slot => ({
-        entity: "campaign_criterion",
-        operation: "create",
-        resource: {
-          campaign: campaignResourceName,
-          ad_schedule: {
-            day_of_week: enums.DayOfWeek[slot.dayOfWeek as keyof typeof enums.DayOfWeek],
-            start_hour: slot.startHour,
-            start_minute: slot.startMinute === 0 ? enums.MinuteOfHour.ZERO :
-                         slot.startMinute === 15 ? enums.MinuteOfHour.FIFTEEN :
-                         slot.startMinute === 30 ? enums.MinuteOfHour.THIRTY :
-                         enums.MinuteOfHour.FORTY_FIVE,
-            end_hour: slot.endHour,
-            end_minute: slot.endMinute === 0 ? enums.MinuteOfHour.ZERO :
-                       slot.endMinute === 15 ? enums.MinuteOfHour.FIFTEEN :
-                       slot.endMinute === 30 ? enums.MinuteOfHour.THIRTY :
-                       enums.MinuteOfHour.FORTY_FIVE
-          },
-          bid_modifier: slot.bidModifier ? (slot.bidModifier / 100 + 1) : 1.0 // Convert percentage to multiplier
-        }
-      }))
+      let adScheduleOperations = []
 
-      const scheduleResponse = await customer.mutateResources(adScheduleOperations)
-      console.log(`✅ Added ${campaignData.adScheduleTemplate.schedule.length} ad schedule slots`)
+      // Handle built-in schedules
+      if (campaignData.adScheduleTemplateId === 'est_business_hours') {
+        console.log('📅 Using EST Business Hours schedule (9 AM - 9 PM EST)')
+        // EST Business Hours: 00:00-03:00 and 15:00-00:00 UTC (covers 9 AM - 9 PM EST)
+        const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+        
+        adScheduleOperations = daysOfWeek.flatMap(day => [
+          // Early morning slot: 00:00-03:00 UTC
+          {
+            entity: "campaign_criterion",
+            operation: "create",
+            resource: {
+              campaign: campaignResourceName,
+              ad_schedule: {
+                day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+                start_hour: 0,
+                start_minute: enums.MinuteOfHour.ZERO,
+                end_hour: 3,
+                end_minute: enums.MinuteOfHour.ZERO
+              }
+            }
+          },
+          // Afternoon/evening slot: 15:00-00:00 UTC
+          {
+            entity: "campaign_criterion",
+            operation: "create",
+            resource: {
+              campaign: campaignResourceName,
+              ad_schedule: {
+                day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+                start_hour: 15,
+                start_minute: enums.MinuteOfHour.ZERO,
+                end_hour: 0,
+                end_minute: enums.MinuteOfHour.ZERO
+              }
+            }
+          }
+        ])
+      } 
+      else if (campaignData.adScheduleTemplateId === 'amsterdam_evening_rush') {
+        console.log('🌃 Using Amsterdam Evening Rush schedule (11 PM - 3 AM AMS)')
+        // Amsterdam Evening Rush: 23:00-00:00 and 00:00-03:00 UTC
+        const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+        
+        adScheduleOperations = daysOfWeek.flatMap(day => [
+          // Late evening slot: 23:00-00:00 UTC
+          {
+            entity: "campaign_criterion",
+            operation: "create",
+            resource: {
+              campaign: campaignResourceName,
+              ad_schedule: {
+                day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+                start_hour: 23,
+                start_minute: enums.MinuteOfHour.ZERO,
+                end_hour: 0,
+                end_minute: enums.MinuteOfHour.ZERO
+              }
+            }
+          },
+          // Early morning slot: 00:00-03:00 UTC
+          {
+            entity: "campaign_criterion",
+            operation: "create",
+            resource: {
+              campaign: campaignResourceName,
+              ad_schedule: {
+                day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+                start_hour: 0,
+                start_minute: enums.MinuteOfHour.ZERO,
+                end_hour: 3,
+                end_minute: enums.MinuteOfHour.ZERO
+              }
+            }
+          }
+        ])
+      }
+      // Handle custom templates
+      else if (campaignData.adScheduleTemplate && campaignData.adScheduleTemplate.schedule.length > 0) {
+        console.log('📋 Using custom ad schedule template')
+        adScheduleOperations = campaignData.adScheduleTemplate.schedule.map(slot => ({
+          entity: "campaign_criterion",
+          operation: "create",
+          resource: {
+            campaign: campaignResourceName,
+            ad_schedule: {
+              day_of_week: enums.DayOfWeek[slot.dayOfWeek as keyof typeof enums.DayOfWeek],
+              start_hour: slot.startHour,
+              start_minute: slot.startMinute === 0 ? enums.MinuteOfHour.ZERO :
+                           slot.startMinute === 15 ? enums.MinuteOfHour.FIFTEEN :
+                           slot.startMinute === 30 ? enums.MinuteOfHour.THIRTY :
+                           enums.MinuteOfHour.FORTY_FIVE,
+              end_hour: slot.endHour,
+              end_minute: slot.endMinute === 0 ? enums.MinuteOfHour.ZERO :
+                         slot.endMinute === 15 ? enums.MinuteOfHour.FIFTEEN :
+                         slot.endMinute === 30 ? enums.MinuteOfHour.THIRTY :
+                         enums.MinuteOfHour.FORTY_FIVE
+            },
+            bid_modifier: slot.bidModifier ? (slot.bidModifier / 100 + 1) : 1.0 // Convert percentage to multiplier
+          }
+        }))
+      }
+
+      if (adScheduleOperations.length > 0) {
+        const scheduleResponse = await customer.mutateResources(adScheduleOperations)
+        console.log(`✅ Added ${adScheduleOperations.length} ad schedule slots`)
+      }
     }
 
     console.log('🎉 Campaign creation completed successfully!')
