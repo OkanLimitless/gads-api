@@ -464,7 +464,7 @@ export async function createCampaign(
     const campaignResource = {
       name: campaignData.name,
       advertising_channel_type: enums.AdvertisingChannelType.SEARCH,
-      status: enums.CampaignStatus.PAUSED, // Start paused for safety
+              status: enums.CampaignStatus.ENABLED, // Start enabled and ready to run
       campaign_budget: budgetResourceName,
       start_date: campaignData.startDate || new Date().toISOString().split('T')[0].replace(/-/g, ''),
       end_date: campaignData.endDate,
