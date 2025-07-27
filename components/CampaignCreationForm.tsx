@@ -133,6 +133,42 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     setAdScheduleTemplates(newTemplates)
   }
 
+  // Helper function to get location display name
+  const getLocationDisplayName = (locationCode: string): string => {
+    const locationNames: Record<string, string> = {
+      // Countries
+      'US': 'United States (All States)',
+      'CA': 'Canada',
+      'GB': 'United Kingdom', 
+      'AU': 'Australia',
+      'DE': 'Germany',
+      'FR': 'France',
+      
+      // US States
+      'US-CA': 'California',
+      'US-NY': 'New York',
+      'US-TX': 'Texas', 
+      'US-FL': 'Florida',
+      'US-IL': 'Illinois',
+      'US-PA': 'Pennsylvania',
+      'US-OH': 'Ohio',
+      'US-GA': 'Georgia',
+      'US-NC': 'North Carolina',
+      'US-MI': 'Michigan',
+      'US-NJ': 'New Jersey',
+      'US-VA': 'Virginia',
+      'US-WA': 'Washington',
+      'US-AZ': 'Arizona',
+      'US-MA': 'Massachusetts',
+      'US-TN': 'Tennessee',
+      'US-IN': 'Indiana',
+      'US-MO': 'Missouri',
+      'US-MD': 'Maryland',
+      'US-WI': 'Wisconsin'
+    }
+    return locationNames[locationCode] || locationCode
+  }
+
   // Load template data into form
   const loadTemplate = (template: CampaignTemplate) => {
     setCampaignData(prev => ({
@@ -529,7 +565,27 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="US">United States</SelectItem>
+                  <SelectItem value="US">United States (All States)</SelectItem>
+                  <SelectItem value="US-CA">California</SelectItem>
+                  <SelectItem value="US-NY">New York</SelectItem>
+                  <SelectItem value="US-TX">Texas</SelectItem>
+                  <SelectItem value="US-FL">Florida</SelectItem>
+                  <SelectItem value="US-IL">Illinois</SelectItem>
+                  <SelectItem value="US-PA">Pennsylvania</SelectItem>
+                  <SelectItem value="US-OH">Ohio</SelectItem>
+                  <SelectItem value="US-GA">Georgia</SelectItem>
+                  <SelectItem value="US-NC">North Carolina</SelectItem>
+                  <SelectItem value="US-MI">Michigan</SelectItem>
+                  <SelectItem value="US-NJ">New Jersey</SelectItem>
+                  <SelectItem value="US-VA">Virginia</SelectItem>
+                  <SelectItem value="US-WA">Washington</SelectItem>
+                  <SelectItem value="US-AZ">Arizona</SelectItem>
+                  <SelectItem value="US-MA">Massachusetts</SelectItem>
+                  <SelectItem value="US-TN">Tennessee</SelectItem>
+                  <SelectItem value="US-IN">Indiana</SelectItem>
+                  <SelectItem value="US-MO">Missouri</SelectItem>
+                  <SelectItem value="US-MD">Maryland</SelectItem>
+                  <SelectItem value="US-WI">Wisconsin</SelectItem>
                   <SelectItem value="CA">Canada</SelectItem>
                   <SelectItem value="GB">United Kingdom</SelectItem>
                   <SelectItem value="AU">Australia</SelectItem>
@@ -895,6 +951,21 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Keywords</Label>
                   <p>{campaignData.keywords.filter(k => k.trim()).join(', ')}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">Location Targeting</Label>
+                    <p>{campaignData.locations.map(loc => getLocationDisplayName(loc)).join(', ')}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">Language</Label>
+                    <p>{campaignData.languageCode === 'en' ? 'English' : 
+                        campaignData.languageCode === 'es' ? 'Spanish' :
+                        campaignData.languageCode === 'fr' ? 'French' :
+                        campaignData.languageCode === 'de' ? 'German' :
+                        campaignData.languageCode === 'it' ? 'Italian' : campaignData.languageCode}</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

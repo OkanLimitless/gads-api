@@ -732,12 +732,35 @@ export async function createCampaign(
     if (campaignData.locations && campaignData.locations.length > 0) {
       console.log('🌍 Adding location targeting...')
       const locationCriteriaMap: Record<string, number> = {
+        // Countries
         'US': 2840, // United States
         'CA': 2124, // Canada
         'GB': 2826, // United Kingdom
         'AU': 2036, // Australia
         'DE': 2276, // Germany
-        'FR': 2250  // France
+        'FR': 2250, // France
+        
+        // US States (geo target constants)
+        'US-CA': 21137, // California
+        'US-NY': 21167, // New York
+        'US-TX': 21176, // Texas
+        'US-FL': 21149, // Florida
+        'US-IL': 21151, // Illinois
+        'US-PA': 21170, // Pennsylvania
+        'US-OH': 21169, // Ohio
+        'US-GA': 21150, // Georgia
+        'US-NC': 21166, // North Carolina
+        'US-MI': 21161, // Michigan
+        'US-NJ': 21165, // New Jersey
+        'US-VA': 21178, // Virginia
+        'US-WA': 21179, // Washington
+        'US-AZ': 21135, // Arizona
+        'US-MA': 21158, // Massachusetts
+        'US-TN': 21175, // Tennessee
+        'US-IN': 21152, // Indiana
+        'US-MO': 21163, // Missouri
+        'US-MD': 21157, // Maryland
+        'US-WI': 21180  // Wisconsin
       }
 
       const locationMutateOperations = campaignData.locations.map(location => ({

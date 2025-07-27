@@ -36,6 +36,42 @@ export default function TemplateManager({ templates, onSaveTemplates, onLoadTemp
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
 
+  // Helper function to get location display name
+  const getLocationDisplayName = (locationCode: string): string => {
+    const locationNames: Record<string, string> = {
+      // Countries
+      'US': 'United States (All States)',
+      'CA': 'Canada',
+      'GB': 'United Kingdom', 
+      'AU': 'Australia',
+      'DE': 'Germany',
+      'FR': 'France',
+      
+      // US States
+      'US-CA': 'California',
+      'US-NY': 'New York',
+      'US-TX': 'Texas', 
+      'US-FL': 'Florida',
+      'US-IL': 'Illinois',
+      'US-PA': 'Pennsylvania',
+      'US-OH': 'Ohio',
+      'US-GA': 'Georgia',
+      'US-NC': 'North Carolina',
+      'US-MI': 'Michigan',
+      'US-NJ': 'New Jersey',
+      'US-VA': 'Virginia',
+      'US-WA': 'Washington',
+      'US-AZ': 'Arizona',
+      'US-MA': 'Massachusetts',
+      'US-TN': 'Tennessee',
+      'US-IN': 'Indiana',
+      'US-MO': 'Missouri',
+      'US-MD': 'Maryland',
+      'US-WI': 'Wisconsin'
+    }
+    return locationNames[locationCode] || locationCode
+  }
+
   const deleteTemplate = (templateId: string) => {
     const newTemplates = templates.filter(t => t.id !== templateId)
     onSaveTemplates(newTemplates)
@@ -134,7 +170,7 @@ export default function TemplateManager({ templates, onSaveTemplates, onLoadTemp
                       </div>
                       <div className="flex items-center">
                         <Globe className="h-4 w-4 mr-1 text-purple-600" />
-                        {template.data.locations.join(', ')}
+                        {template.data.locations.map(loc => getLocationDisplayName(loc)).join(', ')}
                       </div>
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1 text-gray-600" />
