@@ -817,7 +817,7 @@ export async function createCampaign(
           resource: {
             campaign: campaignResourceName,
             device: {
-              type: enums.DeviceType.DESKTOP
+              type: enums.Device.DESKTOP
             },
             bid_modifier: -1.0 // -100%
           }
@@ -828,7 +828,7 @@ export async function createCampaign(
           resource: {
             campaign: campaignResourceName,
             device: {
-              type: enums.DeviceType.TABLET
+              type: enums.Device.TABLET
             },
             bid_modifier: -1.0 // -100%
           }
