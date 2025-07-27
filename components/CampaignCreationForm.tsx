@@ -144,27 +144,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
       'DE': 'Germany',
       'FR': 'France',
       
-      // US States
-      'US-CA': 'California',
-      'US-NY': 'New York',
-      'US-TX': 'Texas', 
-      'US-FL': 'Florida',
-      'US-IL': 'Illinois',
-      'US-PA': 'Pennsylvania',
-      'US-OH': 'Ohio',
-      'US-GA': 'Georgia',
-      'US-NC': 'North Carolina',
-      'US-MI': 'Michigan',
-      'US-NJ': 'New Jersey',
-      'US-VA': 'Virginia',
-      'US-WA': 'Washington',
-      'US-AZ': 'Arizona',
-      'US-MA': 'Massachusetts',
-      'US-TN': 'Tennessee',
-      'US-IN': 'Indiana',
-      'US-MO': 'Missouri',
-      'US-MD': 'Maryland',
-      'US-WI': 'Wisconsin'
+      // Special targeting
+      'TERMINIX': 'Terminix Targeting (CA, NV, AZ, TX, FL, NY, IL, WA, CO, GA, OR, MA, NJ, MD, VA)'
     }
     return locationNames[locationCode] || locationCode
   }
@@ -566,26 +547,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="US">United States (All States)</SelectItem>
-                  <SelectItem value="US-CA">California</SelectItem>
-                  <SelectItem value="US-NY">New York</SelectItem>
-                  <SelectItem value="US-TX">Texas</SelectItem>
-                  <SelectItem value="US-FL">Florida</SelectItem>
-                  <SelectItem value="US-IL">Illinois</SelectItem>
-                  <SelectItem value="US-PA">Pennsylvania</SelectItem>
-                  <SelectItem value="US-OH">Ohio</SelectItem>
-                  <SelectItem value="US-GA">Georgia</SelectItem>
-                  <SelectItem value="US-NC">North Carolina</SelectItem>
-                  <SelectItem value="US-MI">Michigan</SelectItem>
-                  <SelectItem value="US-NJ">New Jersey</SelectItem>
-                  <SelectItem value="US-VA">Virginia</SelectItem>
-                  <SelectItem value="US-WA">Washington</SelectItem>
-                  <SelectItem value="US-AZ">Arizona</SelectItem>
-                  <SelectItem value="US-MA">Massachusetts</SelectItem>
-                  <SelectItem value="US-TN">Tennessee</SelectItem>
-                  <SelectItem value="US-IN">Indiana</SelectItem>
-                  <SelectItem value="US-MO">Missouri</SelectItem>
-                  <SelectItem value="US-MD">Maryland</SelectItem>
-                  <SelectItem value="US-WI">Wisconsin</SelectItem>
+                  <SelectItem value="TERMINIX">Terminix Targeting (15 States)</SelectItem>
                   <SelectItem value="CA">Canada</SelectItem>
                   <SelectItem value="GB">United Kingdom</SelectItem>
                   <SelectItem value="AU">Australia</SelectItem>

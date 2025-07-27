@@ -47,27 +47,8 @@ export default function TemplateManager({ templates, onSaveTemplates, onLoadTemp
       'DE': 'Germany',
       'FR': 'France',
       
-      // US States
-      'US-CA': 'California',
-      'US-NY': 'New York',
-      'US-TX': 'Texas', 
-      'US-FL': 'Florida',
-      'US-IL': 'Illinois',
-      'US-PA': 'Pennsylvania',
-      'US-OH': 'Ohio',
-      'US-GA': 'Georgia',
-      'US-NC': 'North Carolina',
-      'US-MI': 'Michigan',
-      'US-NJ': 'New Jersey',
-      'US-VA': 'Virginia',
-      'US-WA': 'Washington',
-      'US-AZ': 'Arizona',
-      'US-MA': 'Massachusetts',
-      'US-TN': 'Tennessee',
-      'US-IN': 'Indiana',
-      'US-MO': 'Missouri',
-      'US-MD': 'Maryland',
-      'US-WI': 'Wisconsin'
+      // Special targeting
+      'TERMINIX': 'Terminix Targeting (15 States)'
     }
     return locationNames[locationCode] || locationCode
   }

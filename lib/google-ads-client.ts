@@ -738,41 +738,59 @@ export async function createCampaign(
         'GB': 2826, // United Kingdom
         'AU': 2036, // Australia
         'DE': 2276, // Germany
-        'FR': 2250, // France
-        
-        // US States (geo target constants)
-        'US-CA': 21137, // California
-        'US-NY': 21167, // New York
-        'US-TX': 21176, // Texas
-        'US-FL': 21149, // Florida
-        'US-IL': 21151, // Illinois
-        'US-PA': 21170, // Pennsylvania
-        'US-OH': 21169, // Ohio
-        'US-GA': 21150, // Georgia
-        'US-NC': 21166, // North Carolina
-        'US-MI': 21161, // Michigan
-        'US-NJ': 21165, // New Jersey
-        'US-VA': 21178, // Virginia
-        'US-WA': 21179, // Washington
-        'US-AZ': 21135, // Arizona
-        'US-MA': 21158, // Massachusetts
-        'US-TN': 21175, // Tennessee
-        'US-IN': 21152, // Indiana
-        'US-MO': 21163, // Missouri
-        'US-MD': 21157, // Maryland
-        'US-WI': 21180  // Wisconsin
+        'FR': 2250  // France
       }
 
-      const locationMutateOperations = campaignData.locations.map(location => ({
-        entity: "campaign_criterion",
-        operation: "create",
-        resource: {
-          campaign: campaignResourceName,
-          location: {
-            geo_target_constant: `geoTargetConstants/${locationCriteriaMap[location] || 2840}`
-          }
+      // Terminix targeting states (geo target constants)
+      const terminixStates = {
+        'CA': 21137, // California
+        'NV': 21164, // Nevada
+        'AZ': 21135, // Arizona
+        'TX': 21176, // Texas
+        'FL': 21149, // Florida
+        'NY': 21167, // New York
+        'IL': 21151, // Illinois
+        'WA': 21179, // Washington
+        'CO': 21138, // Colorado
+        'GA': 21150, // Georgia
+        'OR': 21168, // Oregon
+        'MA': 21158, // Massachusetts
+        'NJ': 21165, // New Jersey
+        'MD': 21157, // Maryland
+        'VA': 21178  // Virginia
+      }
+
+      let locationMutateOperations = []
+
+      for (const location of campaignData.locations) {
+        if (location === 'TERMINIX') {
+          // Add all Terminix states
+          console.log('🎯 Adding Terminix targeting (15 states)...')
+          const terminixOperations = Object.values(terminixStates).map(geoId => ({
+            entity: "campaign_criterion",
+            operation: "create",
+            resource: {
+              campaign: campaignResourceName,
+              location: {
+                geo_target_constant: `geoTargetConstants/${geoId}`
+              }
+            }
+          }))
+          locationMutateOperations.push(...terminixOperations)
+        } else {
+          // Regular country targeting
+          locationMutateOperations.push({
+            entity: "campaign_criterion",
+            operation: "create",
+            resource: {
+              campaign: campaignResourceName,
+              location: {
+                geo_target_constant: `geoTargetConstants/${locationCriteriaMap[location] || 2840}`
+              }
+            }
+          })
         }
-      }))
+      }
 
       const locationResponse = await customer.mutateResources(locationMutateOperations)
       
