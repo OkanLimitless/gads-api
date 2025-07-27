@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Target, DollarSign, Calendar, Settings, Globe, Edit, Plus, Trash2 } from 'lucide-react'
+import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Target, DollarSign, Calendar, Settings, Globe, Edit, Plus, Trash2, Clock } from 'lucide-react'
 import TemplateManager from './TemplateManager'
+import AdScheduleManager from './AdScheduleManager'
 
 interface CampaignCreationFormProps {
   selectedAccount: {
@@ -20,6 +21,22 @@ interface CampaignCreationFormProps {
   onSuccess?: (campaignData: any) => void
   onError?: (error: string) => void
   onBack?: () => void
+}
+
+interface AdScheduleTemplate {
+  id: string
+  name: string
+  description: string
+  schedule: {
+    dayOfWeek: string // MONDAY, TUESDAY, etc.
+    startHour: number // 0-23
+    startMinute: number // 0, 15, 30, 45
+    endHour: number // 0-23
+    endMinute: number // 0, 15, 30, 45
+    bidModifier?: number // -90 to 900 (percentage)
+  }[]
+  createdAt: string
+  updatedAt: string
 }
 
 interface CampaignData {
@@ -42,6 +59,8 @@ interface CampaignData {
   
   // Other Settings
   languageCode: string
+  adScheduleTemplateId?: string
+  deviceTargeting: 'ALL' | 'MOBILE_ONLY'
 }
 
 interface CampaignTemplate {
@@ -74,6 +93,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
   const [showTemplateManager, setShowTemplateManager] = useState(false)
+  const [adScheduleTemplates, setAdScheduleTemplates] = useState<AdScheduleTemplate[]>([])
+  const [showAdScheduleManager, setShowAdScheduleManager] = useState(false)
   
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
@@ -83,7 +104,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     descriptions: ['', ''],
     keywords: [''],
     locations: ['US'],
-    languageCode: 'en'
+    languageCode: 'en',
+    deviceTargeting: 'ALL'
   })
 
   // Load templates from localStorage on component mount
@@ -92,12 +114,23 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     if (savedTemplates) {
       setTemplates(JSON.parse(savedTemplates))
     }
+    
+    const savedAdScheduleTemplates = localStorage.getItem('adScheduleTemplates')
+    if (savedAdScheduleTemplates) {
+      setAdScheduleTemplates(JSON.parse(savedAdScheduleTemplates))
+    }
   }, [])
 
   // Save templates to localStorage
   const saveTemplates = (newTemplates: CampaignTemplate[]) => {
     localStorage.setItem('campaignTemplates', JSON.stringify(newTemplates))
     setTemplates(newTemplates)
+  }
+
+  // Save ad schedule templates to localStorage
+  const saveAdScheduleTemplates = (newTemplates: AdScheduleTemplate[]) => {
+    localStorage.setItem('adScheduleTemplates', JSON.stringify(newTemplates))
+    setAdScheduleTemplates(newTemplates)
   }
 
   // Load template data into form
@@ -125,7 +158,9 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
         descriptions: campaignData.descriptions,
         keywords: campaignData.keywords,
         locations: campaignData.locations,
-        languageCode: campaignData.languageCode
+        languageCode: campaignData.languageCode,
+        adScheduleTemplateId: campaignData.adScheduleTemplateId,
+        deviceTargeting: campaignData.deviceTargeting
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -238,6 +273,11 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
             keywords: campaignData.keywords.filter(k => k.trim().length > 0),
             locations: campaignData.locations,
             languageCode: campaignData.languageCode,
+            deviceTargeting: campaignData.deviceTargeting,
+            adScheduleTemplateId: campaignData.adScheduleTemplateId,
+            adScheduleTemplate: campaignData.adScheduleTemplateId 
+              ? adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId) 
+              : undefined,
             networkSettings: {
               targetGoogleSearch: true,
               targetSearchNetwork: false,
@@ -321,6 +361,17 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
           setShowTemplateManager(false)
         }}
         onClose={() => setShowTemplateManager(false)}
+      />
+    )
+  }
+
+  // Ad schedule manager screen
+  if (showAdScheduleManager) {
+    return (
+      <AdScheduleManager
+        templates={adScheduleTemplates}
+        onSaveTemplates={saveAdScheduleTemplates}
+        onClose={() => setShowAdScheduleManager(false)}
       />
     )
   }
@@ -503,6 +554,70 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   <SelectItem value="it">Italian</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label>Device Targeting</Label>
+              <Select value={campaignData.deviceTargeting} onValueChange={(value) => updateCampaignData('deviceTargeting', value as 'ALL' | 'MOBILE_ONLY')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Devices</SelectItem>
+                  <SelectItem value="MOBILE_ONLY">Mobile Only</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-gray-500 mt-1">
+                Mobile Only will set desktop and tablet bid adjustments to -100%
+              </p>
+            </div>
+
+            <div>
+              <Label>Ad Schedule Template (Optional)</Label>
+              <div className="space-y-3">
+                <Select 
+                  value={campaignData.adScheduleTemplateId || 'none'} 
+                  onValueChange={(value) => updateCampaignData('adScheduleTemplateId', value === 'none' ? undefined : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ad schedule template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Schedule (Show ads all day)</SelectItem>
+                    {adScheduleTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowAdScheduleManager(true)}
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Manage Schedules
+                  </Button>
+                  {campaignData.adScheduleTemplateId && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const template = adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId)
+                        if (template) {
+                          alert(`Schedule: ${template.description}\n\nTime slots: ${template.schedule.length} configured`)
+                        }
+                      }}
+                    >
+                      Preview Schedule
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
 
 
@@ -750,6 +865,22 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Keywords</Label>
                   <p>{campaignData.keywords.filter(k => k.trim()).join(', ')}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">Device Targeting</Label>
+                    <p>{campaignData.deviceTargeting === 'MOBILE_ONLY' ? 'Mobile Only' : 'All Devices'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">Ad Schedule</Label>
+                    <p>
+                      {campaignData.adScheduleTemplateId 
+                        ? adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId)?.name || 'Custom Schedule'
+                        : 'Show ads all day'
+                      }
+                    </p>
+                  </div>
                 </div>
               </div>
 

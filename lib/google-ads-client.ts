@@ -805,6 +805,70 @@ export async function createCampaign(
       console.log(`✅ Added language targeting: ${campaignData.languageCode}`)
     }
 
+    // Step 7: Add Device Targeting (Mobile Only)
+    if (campaignData.deviceTargeting === 'MOBILE_ONLY') {
+      console.log('📱 Setting up mobile-only targeting...')
+      
+      // Create device bid modifiers for desktop and tablet (-100% = exclude)
+      const deviceBidModifierOperations = [
+        {
+          entity: "campaign_criterion",
+          operation: "create",
+          resource: {
+            campaign: campaignResourceName,
+            device: {
+              type: enums.DeviceType.DESKTOP
+            },
+            bid_modifier: -1.0 // -100%
+          }
+        },
+        {
+          entity: "campaign_criterion",
+          operation: "create", 
+          resource: {
+            campaign: campaignResourceName,
+            device: {
+              type: enums.DeviceType.TABLET
+            },
+            bid_modifier: -1.0 // -100%
+          }
+        }
+      ]
+
+      const deviceResponse = await customer.mutateResources(deviceBidModifierOperations)
+      console.log('✅ Set device targeting to mobile only (desktop and tablet -100%)')
+    }
+
+    // Step 8: Add Ad Scheduling
+    if (campaignData.adScheduleTemplate && campaignData.adScheduleTemplate.schedule.length > 0) {
+      console.log('⏰ Setting up ad scheduling...')
+      
+      const adScheduleOperations = campaignData.adScheduleTemplate.schedule.map(slot => ({
+        entity: "campaign_criterion",
+        operation: "create",
+        resource: {
+          campaign: campaignResourceName,
+          ad_schedule: {
+            day_of_week: enums.DayOfWeek[slot.dayOfWeek as keyof typeof enums.DayOfWeek],
+            start_hour: slot.startHour,
+            start_minute: slot.startMinute === 0 ? enums.MinuteOfHour.ZERO :
+                         slot.startMinute === 15 ? enums.MinuteOfHour.FIFTEEN :
+                         slot.startMinute === 30 ? enums.MinuteOfHour.THIRTY :
+                         enums.MinuteOfHour.FORTY_FIVE,
+            end_hour: slot.endHour,
+            end_minute: slot.endMinute === 0 ? enums.MinuteOfHour.ZERO :
+                       slot.endMinute === 15 ? enums.MinuteOfHour.FIFTEEN :
+                       slot.endMinute === 30 ? enums.MinuteOfHour.THIRTY :
+                       enums.MinuteOfHour.FORTY_FIVE
+          },
+          bid_modifier: slot.bidModifier ? (slot.bidModifier / 100 + 1) : 1.0 // Convert percentage to multiplier
+        }
+      }))
+
+      const scheduleResponse = await customer.mutateResources(adScheduleOperations)
+      console.log(`✅ Added ${campaignData.adScheduleTemplate.schedule.length} ad schedule slots`)
+    }
+
     console.log('🎉 Campaign creation completed successfully!')
     return {
       success: true,
