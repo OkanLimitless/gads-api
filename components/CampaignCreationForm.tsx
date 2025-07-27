@@ -26,7 +26,6 @@ interface CampaignData {
   // Campaign Settings
   name: string
   budget: number
-  budgetDeliveryMethod: string
   
   // Responsive Search Ad
   finalUrl: string
@@ -79,7 +78,6 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
     budget: 10, // Budget in dollars (will be converted to micros in backend)
-    budgetDeliveryMethod: 'STANDARD', // Default to standard delivery
     finalUrl: '',
     headlines: ['', '', ''],
     descriptions: ['', ''],
@@ -120,7 +118,6 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
       description: templateDescription,
       data: {
         budget: campaignData.budget,
-        budgetDeliveryMethod: campaignData.budgetDeliveryMethod,
         finalUrl: campaignData.finalUrl,
         path1: campaignData.path1,
         path2: campaignData.path2,
@@ -228,7 +225,6 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
           campaignData: {
             name: campaignData.name,
             budgetAmountMicros: campaignData.budget * 1000000, // Convert dollars to micros
-            budgetDeliveryMethod: campaignData.budgetDeliveryMethod, // Pass the delivery method
             biddingStrategy: 'MAXIMIZE_CONVERSIONS', // Hardcoded to MAXIMIZE_CONVERSIONS
             campaignType: 'SEARCH', // Hardcoded to SEARCH
             startDate: new Date().toISOString().split('T')[0].replace(/-/g, ''), // Today's date in YYYYMMDD format
@@ -369,7 +365,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                             <div className="font-medium">{template.name}</div>
                             <div className="text-sm text-gray-600">{template.description}</div>
                             <div className="text-xs text-gray-500 mt-1">
-                              Budget: ${template.data.budget}/day (Standard) • {template.data.keywords.filter(k => k.trim()).length} keywords
+                              Budget: ${template.data.budget}/day • {template.data.keywords.filter(k => k.trim()).length} keywords
                             </div>
                           </div>
                         ))}
@@ -467,21 +463,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               {errors.budget && <p className="text-sm text-red-500 mt-1">{errors.budget}</p>}
             </div>
 
-            <div>
-              <Label htmlFor="budgetDeliveryMethod">Budget Delivery Method</Label>
-              <div className="p-3 bg-gray-50 rounded-lg border">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                  <span className="font-medium">Standard Delivery</span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  Budget is spread evenly throughout the day for optimal performance.
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  <strong>Note:</strong> Accelerated delivery was discontinued for Search campaigns in 2019.
-                </p>
-              </div>
-            </div>
+
 
           </div>
         )
@@ -715,30 +697,30 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                     <p>${campaignData.budget.toFixed(2)}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-600">Budget Delivery</Label>
-                    <p>Standard</p>
+                    <Label className="text-sm font-medium text-gray-600">Bidding Strategy</Label>
+                    <p>Maximize Conversions</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-600">Bidding Strategy</Label>
-                    <p>Maximize Conversions</p>
-                  </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Campaign Type</Label>
                     <p>Search Campaign</p>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Ad Group Name</Label>
                     <p>Ad group1</p>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Start Date</Label>
                     <p>Today ({new Date().toLocaleDateString()})</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">Ad Group Name</Label>
+                    <p>Ad group1</p>
                   </div>
                 </div>
 

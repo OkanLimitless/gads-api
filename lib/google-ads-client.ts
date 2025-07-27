@@ -458,16 +458,7 @@ export async function createCampaign(
     
     // Step 1: Create Campaign Budget and Campaign atomically
     console.log('💰 Creating campaign budget and campaign atomically...')
-    console.log(`📊 Budget delivery method: ${campaignData.budgetDeliveryMethod}`)
-    
-    // Force standard delivery for Search campaigns (accelerated not supported since 2019)
-    const actualDeliveryMethod = campaignData.campaignType === 'SEARCH' && campaignData.budgetDeliveryMethod === 'ACCELERATED' 
-      ? 'STANDARD' 
-      : campaignData.budgetDeliveryMethod
-    
-    if (campaignData.budgetDeliveryMethod === 'ACCELERATED' && campaignData.campaignType === 'SEARCH') {
-      console.log('⚠️ Accelerated delivery not supported for Search campaigns, using Standard delivery instead')
-    }
+    console.log('📊 Using Standard budget delivery method')
     
     // Prepare campaign resource
     const campaignResource = {
@@ -511,9 +502,7 @@ export async function createCampaign(
         resource: {
           resource_name: budgetResourceName,
           amount_micros: campaignData.budgetAmountMicros,
-          delivery_method: actualDeliveryMethod === 'ACCELERATED' 
-            ? enums.BudgetDeliveryMethod.ACCELERATED 
-            : enums.BudgetDeliveryMethod.STANDARD,
+          delivery_method: enums.BudgetDeliveryMethod.STANDARD, // Always use Standard for Search campaigns
           explicitly_shared: false,
         },
       },
