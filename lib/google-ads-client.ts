@@ -810,10 +810,38 @@ export async function createCampaign(
       console.log('📱 Setting up mobile-only targeting...')
       
               try {
-          // Skip device targeting for now - it's causing persistent issues
-          // Mobile-only targeting can be achieved through other means or manual setup
-          console.log('⚠️ Skipping device targeting due to API limitations')
-          console.log('💡 Consider setting device targeting manually in Google Ads UI if needed')
+          // Create device bid modifiers - use bid_modifier: 0 to exclude devices (not -1.0)
+          // Google Ads API doesn't support device exclusions, only bid adjustments
+          const deviceBidModifierOperations = [
+            {
+              entity: "campaign_criterion",
+              operation: "create",
+              resource: {
+                campaign: campaignResourceName,
+                device: {
+                  type: enums.Device.DESKTOP
+                },
+                bid_modifier: 0, // 0 = exclude device (shows as -100% in UI)
+                status: enums.CampaignCriterionStatus.ENABLED
+              }
+            },
+            {
+              entity: "campaign_criterion", 
+              operation: "create",
+              resource: {
+                campaign: campaignResourceName,
+                device: {
+                  type: enums.Device.TABLET
+                },
+                bid_modifier: 0, // 0 = exclude device (shows as -100% in UI)
+                status: enums.CampaignCriterionStatus.ENABLED
+              }
+            }
+          ]
+
+          console.log('📊 Device bid modifier operations:', JSON.stringify(deviceBidModifierOperations, null, 2))
+          const deviceResponse = await customer.mutateResources(deviceBidModifierOperations)
+          console.log('✅ Set device targeting to mobile-only (bid_modifier: 0 for desktop and tablet)')
       } catch (error) {
         console.error('❌ Device targeting failed:', error)
         // Don't fail the entire campaign creation for device targeting issues
