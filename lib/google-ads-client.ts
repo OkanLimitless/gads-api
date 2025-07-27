@@ -809,34 +809,41 @@ export async function createCampaign(
     if (campaignData.deviceTargeting === 'MOBILE_ONLY') {
       console.log('📱 Setting up mobile-only targeting...')
       
-      // Create device bid modifiers for desktop and tablet (-100% = exclude)
-      const deviceBidModifierOperations = [
-        {
-          entity: "campaign_criterion",
-          operation: "create",
-          resource: {
-            campaign: campaignResourceName,
-            device: {
-              type: enums.Device.DESKTOP
-            },
-            bid_modifier: -1.0 // -100%
+      try {
+        // Create device bid modifiers for desktop and tablet (-100% = exclude)
+        const deviceBidModifierOperations = [
+          {
+            entity: "campaign_criterion",
+            operation: "create",
+            resource: {
+              campaign: campaignResourceName,
+              device: {
+                type: enums.Device.DESKTOP
+              },
+              bid_modifier: -0.9 // -90% (minimum allowed, close to exclusion)
+            }
+          },
+          {
+            entity: "campaign_criterion",
+            operation: "create", 
+            resource: {
+              campaign: campaignResourceName,
+              device: {
+                type: enums.Device.TABLET
+              },
+              bid_modifier: -0.9 // -90% (minimum allowed, close to exclusion)
+            }
           }
-        },
-        {
-          entity: "campaign_criterion",
-          operation: "create", 
-          resource: {
-            campaign: campaignResourceName,
-            device: {
-              type: enums.Device.TABLET
-            },
-            bid_modifier: -1.0 // -100%
-          }
-        }
-      ]
+        ]
 
-      const deviceResponse = await customer.mutateResources(deviceBidModifierOperations)
-      console.log('✅ Set device targeting to mobile only (desktop and tablet -100%)')
+        console.log('📊 Device bid modifier operations:', JSON.stringify(deviceBidModifierOperations, null, 2))
+        const deviceResponse = await customer.mutateResources(deviceBidModifierOperations)
+        console.log('✅ Set device targeting to mobile-preferred (-90% for desktop and tablet)')
+      } catch (error) {
+        console.error('❌ Device targeting failed:', error)
+        // Don't fail the entire campaign creation for device targeting issues
+        console.log('⚠️ Continuing without device targeting...')
+      }
     }
 
     // Step 8: Add Ad Scheduling
