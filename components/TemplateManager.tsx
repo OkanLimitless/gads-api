@@ -127,7 +127,7 @@ export default function TemplateManager({ templates, onSaveTemplates, onLoadTemp
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="flex items-center">
                         <DollarSign className="h-4 w-4 mr-1 text-green-600" />
-                        ${template.data.budget}/day ({template.data.budgetDeliveryMethod === 'ACCELERATED' ? 'Accelerated' : 'Standard'})
+                        ${template.data.budget}/day (Standard)
                       </div>
                       <div className="flex items-center">
                         <Target className="h-4 w-4 mr-1 text-blue-600" />

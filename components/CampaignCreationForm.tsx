@@ -369,7 +369,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                             <div className="font-medium">{template.name}</div>
                             <div className="text-sm text-gray-600">{template.description}</div>
                             <div className="text-xs text-gray-500 mt-1">
-                              Budget: ${template.data.budget}/day ({template.data.budgetDeliveryMethod === 'ACCELERATED' ? 'Accelerated' : 'Standard'}) • {template.data.keywords.filter(k => k.trim()).length} keywords
+                              Budget: ${template.data.budget}/day (Standard) • {template.data.keywords.filter(k => k.trim()).length} keywords
                             </div>
                           </div>
                         ))}
@@ -469,18 +469,18 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
 
             <div>
               <Label htmlFor="budgetDeliveryMethod">Budget Delivery Method</Label>
-              <Select value={campaignData.budgetDeliveryMethod} onValueChange={(value) => updateCampaignData('budgetDeliveryMethod', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="STANDARD">Standard (Recommended)</SelectItem>
-                  <SelectItem value="ACCELERATED">Accelerated (Experimental)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-gray-500 mt-1">
-                Standard spreads budget evenly throughout the day. Accelerated tries to spend budget as quickly as possible.
-              </p>
+              <div className="p-3 bg-gray-50 rounded-lg border">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                  <span className="font-medium">Standard Delivery</span>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  Budget is spread evenly throughout the day for optimal performance.
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  <strong>Note:</strong> Accelerated delivery was discontinued for Search campaigns in 2019.
+                </p>
+              </div>
             </div>
 
           </div>
@@ -716,7 +716,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Budget Delivery</Label>
-                    <p>{campaignData.budgetDeliveryMethod === 'ACCELERATED' ? 'Accelerated' : 'Standard'}</p>
+                    <p>Standard</p>
                   </div>
                 </div>
 
