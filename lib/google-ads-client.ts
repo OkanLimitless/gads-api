@@ -810,26 +810,39 @@ export async function createCampaign(
       console.log('📱 Setting up mobile-only targeting...')
       
               try {
-          // Create device bid modifiers using CampaignCriterion service with -1.0 bid modifier
-          console.log('📊 Creating desktop exclusion (-100% bid modifier)...')
-          const desktopCriterion = await customer.campaignCriteria.create({
-            campaign: campaignResourceName,
-            device: {
-              type: enums.Device.DESKTOP
+          // Create device bid modifiers using mutateResources with proper CampaignCriterion format
+          const deviceBidModifierOperations = [
+            {
+              entity: "campaign_criterion",
+              operation: "create",
+              resource: {
+                campaign: campaignResourceName,
+                criterion_id: -300, // Device criterion ID for desktop
+                device: {
+                  type: enums.Device.DESKTOP
+                },
+                bid_modifier: -1.0, // -100% (decimal format as per documentation)
+                status: enums.CampaignCriterionStatus.ENABLED
+              }
             },
-            bid_modifier: -1.0 // -100% (decimal format as specified in documentation)
-          })
-          
-          console.log('📊 Creating tablet exclusion (-100% bid modifier)...')
-          const tabletCriterion = await customer.campaignCriteria.create({
-            campaign: campaignResourceName,
-            device: {
-              type: enums.Device.TABLET
-            },
-            bid_modifier: -1.0 // -100% (decimal format as specified in documentation)
-          })
+            {
+              entity: "campaign_criterion", 
+              operation: "create",
+              resource: {
+                campaign: campaignResourceName,
+                criterion_id: -301, // Device criterion ID for tablet
+                device: {
+                  type: enums.Device.TABLET
+                },
+                bid_modifier: -1.0, // -100% (decimal format as per documentation)
+                status: enums.CampaignCriterionStatus.ENABLED
+              }
+            }
+          ]
 
-          console.log('✅ Set device targeting to mobile-only using CampaignCriterion service')
+          console.log('📊 Device bid modifier operations:', JSON.stringify(deviceBidModifierOperations, null, 2))
+          const deviceResponse = await customer.mutateResources(deviceBidModifierOperations)
+          console.log('✅ Set device targeting to mobile-only (-1.0 bid modifier for desktop and tablet)')
       } catch (error) {
         console.error('❌ Device targeting failed:', error)
         // Don't fail the entire campaign creation for device targeting issues
