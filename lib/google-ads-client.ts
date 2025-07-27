@@ -821,7 +821,7 @@ export async function createCampaign(
                 device: {
                   type: enums.Device.DESKTOP
                 },
-                bid_modifier: -1.0, // -100% (decimal format as per documentation)
+                bid_modifier: parseFloat('-1.0'), // -100% (explicit decimal format)
                 status: enums.CampaignCriterionStatus.ENABLED
               }
             },
@@ -834,7 +834,7 @@ export async function createCampaign(
                 device: {
                   type: enums.Device.TABLET
                 },
-                bid_modifier: -1.0, // -100% (decimal format as per documentation)
+                bid_modifier: parseFloat('-1.0'), // -100% (explicit decimal format)
                 status: enums.CampaignCriterionStatus.ENABLED
               }
             }
