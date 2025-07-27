@@ -458,6 +458,7 @@ export async function createCampaign(
     
     // Step 1: Create Campaign Budget and Campaign atomically
     console.log('💰 Creating campaign budget and campaign atomically...')
+    console.log(`📊 Budget delivery method: ${campaignData.budgetDeliveryMethod}`)
     
     // Prepare campaign resource
     const campaignResource = {
@@ -501,7 +502,9 @@ export async function createCampaign(
         resource: {
           resource_name: budgetResourceName,
           amount_micros: campaignData.budgetAmountMicros,
-          delivery_method: enums.BudgetDeliveryMethod.STANDARD,
+          delivery_method: campaignData.budgetDeliveryMethod === 'ACCELERATED' 
+            ? enums.BudgetDeliveryMethod.ACCELERATED 
+            : enums.BudgetDeliveryMethod.STANDARD,
           explicitly_shared: false,
         },
       },
