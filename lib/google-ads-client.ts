@@ -805,12 +805,12 @@ export async function createCampaign(
       console.log(`✅ Added language targeting: ${campaignData.languageCode}`)
     }
 
-    // Step 7: Add Device Targeting (Mobile Only)
+    // Step 7: Add Device Targeting (Mobile Only)  
     if (campaignData.deviceTargeting === 'MOBILE_ONLY') {
       console.log('📱 Setting up mobile-only targeting...')
       
       try {
-        // Create device bid modifiers for desktop and tablet (-100% = exclude)
+        // Create device bid modifiers for desktop and tablet (use smaller negative adjustment)
         const deviceBidModifierOperations = [
           {
             entity: "campaign_criterion",
@@ -820,7 +820,7 @@ export async function createCampaign(
               device: {
                 type: enums.Device.DESKTOP
               },
-              bid_modifier: -0.9 // -90% (minimum allowed, close to exclusion)
+              bid_modifier: -0.8 // -80% (strong mobile preference)
             }
           },
           {
@@ -831,14 +831,14 @@ export async function createCampaign(
               device: {
                 type: enums.Device.TABLET
               },
-              bid_modifier: -0.9 // -90% (minimum allowed, close to exclusion)
+              bid_modifier: -0.8 // -80% (strong mobile preference)
             }
           }
         ]
 
         console.log('📊 Device bid modifier operations:', JSON.stringify(deviceBidModifierOperations, null, 2))
         const deviceResponse = await customer.mutateResources(deviceBidModifierOperations)
-        console.log('✅ Set device targeting to mobile-preferred (-90% for desktop and tablet)')
+        console.log('✅ Set device targeting to mobile-preferred (-80% for desktop and tablet)')
       } catch (error) {
         console.error('❌ Device targeting failed:', error)
         // Don't fail the entire campaign creation for device targeting issues
@@ -855,11 +855,11 @@ export async function createCampaign(
       // Handle built-in schedules
       if (campaignData.adScheduleTemplateId === 'est_business_hours') {
         console.log('📅 Using EST Business Hours schedule (9 AM - 9 PM EST)')
-        // EST Business Hours: 00:00-03:00 and 15:00-00:00 UTC (covers 9 AM - 9 PM EST)
+        // EST Business Hours: 00:00-03:00 and 15:00-23:59 UTC (covers 9 AM - 9 PM EST)
         const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
         
         adScheduleOperations = daysOfWeek.flatMap(day => [
-          // Early morning slot: 00:00-03:00 UTC
+          // Early morning slot: 00:00-03:00 UTC (9 AM - 12 PM EST)
           {
             entity: "campaign_criterion",
             operation: "create",
@@ -874,7 +874,7 @@ export async function createCampaign(
               }
             }
           },
-          // Afternoon/evening slot: 15:00-00:00 UTC
+          // Afternoon/evening slot: 15:00-23:59 UTC (12 PM - 9 PM EST)
           {
             entity: "campaign_criterion",
             operation: "create",
@@ -884,8 +884,8 @@ export async function createCampaign(
                 day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
                 start_hour: 15,
                 start_minute: enums.MinuteOfHour.ZERO,
-                end_hour: 0,
-                end_minute: enums.MinuteOfHour.ZERO
+                end_hour: 23,
+                end_minute: enums.MinuteOfHour.FORTY_FIVE
               }
             }
           }
@@ -893,11 +893,11 @@ export async function createCampaign(
       } 
       else if (campaignData.adScheduleTemplateId === 'amsterdam_evening_rush') {
         console.log('🌃 Using Amsterdam Evening Rush schedule (11 PM - 3 AM AMS)')
-        // Amsterdam Evening Rush: 23:00-00:00 and 00:00-03:00 UTC
+        // Amsterdam Evening Rush: 23:00-23:59 and 00:00-03:00 UTC
         const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
         
         adScheduleOperations = daysOfWeek.flatMap(day => [
-          // Late evening slot: 23:00-00:00 UTC
+          // Late evening slot: 23:00-23:59 UTC (11 PM - 12 AM Amsterdam)
           {
             entity: "campaign_criterion",
             operation: "create",
@@ -907,12 +907,12 @@ export async function createCampaign(
                 day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
                 start_hour: 23,
                 start_minute: enums.MinuteOfHour.ZERO,
-                end_hour: 0,
-                end_minute: enums.MinuteOfHour.ZERO
+                end_hour: 23,
+                end_minute: enums.MinuteOfHour.FORTY_FIVE
               }
             }
           },
-          // Early morning slot: 00:00-03:00 UTC
+          // Early morning slot: 00:00-03:00 UTC (12 AM - 3 AM Amsterdam)
           {
             entity: "campaign_criterion",
             operation: "create",
