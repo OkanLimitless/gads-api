@@ -73,9 +73,13 @@ export async function POST(
         adId: result.adId
       })
 
+      // Create the same date-appended name that was used in the backend
+      const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+      const campaignNameWithDate = `${campaignData.name} - ${today}`
+      
       return NextResponse.json({
         success: true,
-        message: `Campaign "${campaignData.name}" created successfully!`,
+        message: `Campaign "${campaignNameWithDate}" created successfully!`,
         campaignId: result.campaignId,
         budgetId: result.budgetId,
         adGroupId: result.adGroupId,

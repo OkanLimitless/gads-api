@@ -429,6 +429,7 @@ export async function createCampaign(
     console.log(`🚀 Creating campaign for customer ${customerId}:`, {
       campaignData: {
         name: campaignData.name,
+        nameWithDate: `${campaignData.name} - ${new Date().toISOString().split('T')[0]}`,
         budgetAmountMicros: campaignData.budgetAmountMicros,
         biddingStrategy: campaignData.biddingStrategy,
         campaignType: campaignData.campaignType,
@@ -461,8 +462,12 @@ export async function createCampaign(
     console.log('📊 Using Standard budget delivery method')
     
     // Prepare campaign resource
+    // Append today's date to campaign name
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+    const campaignNameWithDate = `${campaignData.name} - ${today}`
+    
     const campaignResource = {
-      name: campaignData.name,
+      name: campaignNameWithDate,
       advertising_channel_type: enums.AdvertisingChannelType.SEARCH,
               status: enums.CampaignStatus.ENABLED, // Start enabled and ready to run
       campaign_budget: budgetResourceName,
