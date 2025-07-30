@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Link2, LogOut, Building2, Users, Target, AlertCircle, Loader2, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Link2, LogOut, Building2, Users, Target, AlertCircle, Loader2, ChevronRight, FileText } from 'lucide-react'
 import Link from 'next/link'
 import CampaignCreationForm from '@/components/CampaignCreationForm'
 import DummyCampaignManager from '@/components/DummyCampaignManager'
+import TemplateManager from '@/components/TemplateManager'
 
 interface AdAccount {
   id: string
@@ -31,7 +32,7 @@ export default function Dashboard() {
   const [selectedClientAccount, setSelectedClientAccount] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
-  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns'>('mcc-selection')
+  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager'>('mcc-selection')
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -125,6 +126,8 @@ export default function Dashboard() {
       setSelectedClientAccount('')
     } else if (step === 'dummy-campaigns') {
       setStep('mcc-selection')
+    } else if (step === 'template-manager') {
+      setStep('mcc-selection')
     }
   }
 
@@ -216,6 +219,12 @@ export default function Dashboard() {
               <>
                 <ChevronRight className="h-4 w-4" />
                 <span className="font-medium text-blue-600">Dummy Campaigns</span>
+              </>
+            )}
+            {step === 'template-manager' && (
+              <>
+                <ChevronRight className="h-4 w-4" />
+                <span className="font-medium text-blue-600">Template Manager</span>
               </>
             )}
           </div>
@@ -332,6 +341,32 @@ export default function Dashboard() {
                             >
                               <Target className="h-4 w-4 mr-2" />
                               Manage Dummy Campaigns
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    
+                    {/* Template Manager Quick Action */}
+                    <div className="mt-6 pt-6 border-t">
+                      <Card className="border-purple-200 bg-purple-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-medium text-purple-900 mb-1">
+                                Template Manager
+                              </h3>
+                              <p className="text-sm text-purple-700">
+                                Create and manage 100+ campaign templates for random selection in dummy campaigns
+                              </p>
+                            </div>
+                            <Button
+                              onClick={() => setStep('template-manager')}
+                              variant="outline"
+                              className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              Manage Templates
                             </Button>
                           </div>
                         </CardContent>
@@ -474,6 +509,11 @@ export default function Dashboard() {
           {/* Dummy Campaigns Step */}
           {status === 'authenticated' && step === 'dummy-campaigns' && (
             <DummyCampaignManager />
+          )}
+
+          {/* Template Manager Step */}
+          {status === 'authenticated' && step === 'template-manager' && (
+            <TemplateManager />
           )}
         </div>
       </div>

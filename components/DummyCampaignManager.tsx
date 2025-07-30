@@ -144,12 +144,13 @@ export default function DummyCampaignManager() {
           body: JSON.stringify({
             accountId,
             templateId: selectedTemplate,
-            customizations: {
+            useRandomTemplate: selectedTemplate === 'RANDOM',
+            customizations: selectedTemplate !== 'RANDOM' ? {
               finalUrl: customTemplate.finalUrl || undefined,
               headlines: customTemplate.headlines.length > 0 ? customTemplate.headlines : undefined,
               descriptions: customTemplate.descriptions.length > 0 ? customTemplate.descriptions : undefined,
               keywords: customTemplate.keywords.length > 0 ? customTemplate.keywords : undefined
-            }
+            } : {}
           }),
         })
 
@@ -215,44 +216,79 @@ export default function DummyCampaignManager() {
             </Alert>
           )}
 
-          {/* Template Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Select Campaign Template
-            </label>
-            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a template..." />
-              </SelectTrigger>
-              <SelectContent>
-                {templates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    <div>
-                      <div className="font-medium">{template.name}</div>
-                      <div className="text-xs text-gray-500">{template.description}</div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Template Selection Mode */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Template Selection Mode
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="random"
+                  name="templateMode"
+                  checked={selectedTemplate === 'RANDOM'}
+                  onChange={() => setSelectedTemplate('RANDOM')}
+                />
+                <label htmlFor="random" className="text-sm">Random Template</label>
+                
+                <input
+                  type="radio"
+                  id="manual"
+                  name="templateMode"
+                  checked={selectedTemplate !== 'RANDOM' && selectedTemplate !== ''}
+                  onChange={() => setSelectedTemplate(templates[0]?.id || '')}
+                  className="ml-4"
+                />
+                <label htmlFor="manual" className="text-sm">Manual Selection</label>
+              </div>
+            </div>
             
-            {selectedTemplate && (
-              <div className="mt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowTemplateCustomization(!showTemplateCustomization)}
-                >
-                  {showTemplateCustomization ? 'Hide' : 'Show'} Template Customization
-                </Button>
+            {selectedTemplate === 'RANDOM' ? (
+              <Alert className="border-green-200 bg-green-50">
+                <AlertDescription className="text-green-700">
+                  🎲 <strong>Random Mode:</strong> A random template will be selected automatically for each campaign creation. 
+                  Perfect for bulk dummy campaign deployment!
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Choose Template</label>
+                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        <div>
+                          <div className="font-medium">{template.name}</div>
+                          <div className="text-xs text-gray-500">{template.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {selectedTemplate && selectedTemplate !== 'RANDOM' && (
+                  <div className="mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowTemplateCustomization(!showTemplateCustomization)}
+                    >
+                      {showTemplateCustomization ? 'Hide' : 'Show'} Template Customization
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {/* Template Customization */}
-          {showTemplateCustomization && selectedTemplate && (
+          {showTemplateCustomization && selectedTemplate && selectedTemplate !== 'RANDOM' && (
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader>
                 <CardTitle className="text-blue-800 text-sm">Customize Template</CardTitle>

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { createDummyCampaign } from '@/lib/google-ads-client'
 import { getTemplateById, customizeTemplateForAccount } from '@/lib/dummy-campaign-templates'
+import { getRandomTemplate } from '../../../template-manager/route'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,24 +18,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const { accountId, templateId, customizations } = await request.json()
+    const { accountId, templateId, useRandomTemplate, customizations } = await request.json()
 
-    if (!accountId || !templateId) {
+    if (!accountId) {
       return NextResponse.json(
-        { error: 'Missing required fields: accountId and templateId' },
+        { error: 'Missing required field: accountId' },
         { status: 400 }
       )
     }
 
-    console.log(`🎯 Creating dummy campaign for account ${accountId} using template ${templateId}`)
+    console.log(`🎯 Creating dummy campaign for account ${accountId}`)
 
-    // Get the template
-    const template = getTemplateById(templateId)
-    if (!template) {
-      return NextResponse.json(
-        { error: `Template with ID ${templateId} not found` },
-        { status: 404 }
-      )
+    // Get the template (random or specific)
+    let template
+    if (useRandomTemplate) {
+      console.log('🎲 Using random template selection')
+      template = await getRandomTemplate()
+      if (!template) {
+        return NextResponse.json(
+          { error: 'No templates available for random selection. Please create templates first.' },
+          { status: 404 }
+        )
+      }
+      console.log(`🎲 Selected random template: ${template.name}`)
+    } else {
+      if (!templateId) {
+        return NextResponse.json(
+          { error: 'Missing required field: templateId (when not using random)' },
+          { status: 400 }
+        )
+      }
+      template = getTemplateById(templateId)
+      if (!template) {
+        return NextResponse.json(
+          { error: `Template with ID ${templateId} not found` },
+          { status: 404 }
+        )
+      }
+      console.log(`📋 Using specified template: ${template.name}`)
     }
 
     // Customize template for the specific account
