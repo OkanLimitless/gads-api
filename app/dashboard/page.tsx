@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Link2, LogOut, Building2, Users, Target, AlertCircle, Loader2, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import CampaignCreationForm from '@/components/CampaignCreationForm'
+import DummyCampaignManager from '@/components/DummyCampaignManager'
 
 interface AdAccount {
   id: string
@@ -30,7 +31,7 @@ export default function Dashboard() {
   const [selectedClientAccount, setSelectedClientAccount] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
-  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation'>('mcc-selection')
+  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns'>('mcc-selection')
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -122,6 +123,8 @@ export default function Dashboard() {
     } else if (step === 'campaign-creation') {
       setStep('client-selection')
       setSelectedClientAccount('')
+    } else if (step === 'dummy-campaigns') {
+      setStep('mcc-selection')
     }
   }
 
@@ -209,6 +212,12 @@ export default function Dashboard() {
                 <span className="font-medium text-blue-600">Create Campaign</span>
               </>
             )}
+            {step === 'dummy-campaigns' && (
+              <>
+                <ChevronRight className="h-4 w-4" />
+                <span className="font-medium text-blue-600">Dummy Campaigns</span>
+              </>
+            )}
           </div>
 
           {/* Back Button */}
@@ -272,35 +281,63 @@ export default function Dashboard() {
                     <span>Loading MCC accounts...</span>
                   </div>
                 ) : mccAccounts.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {mccAccounts.map((account) => (
-                      <div
-                        key={account.id}
-                        className="p-4 border rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
-                        onClick={() => handleMCCSelection(account.id)}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="font-medium">{account.name}</div>
-                          <div className="flex items-center space-x-1">
-                            <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">
-                              MCC
-                            </span>
-                            {account.testAccount && (
-                              <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">
-                                Test
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {mccAccounts.map((account) => (
+                        <div
+                          key={account.id}
+                          className="p-4 border rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                          onClick={() => handleMCCSelection(account.id)}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="font-medium">{account.name}</div>
+                            <div className="flex items-center space-x-1">
+                              <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">
+                                MCC
                               </span>
-                            )}
+                              {account.testAccount && (
+                                <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">
+                                  Test
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ID: {account.id}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Currency: {account.currency} • Timezone: {account.timeZone}
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          ID: {account.id}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Currency: {account.currency} • Timezone: {account.timeZone}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                    
+                    {/* Dummy Campaigns Quick Action */}
+                    <div className="mt-6 pt-6 border-t">
+                      <Card className="border-orange-200 bg-orange-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-medium text-orange-900 mb-1">
+                                Quick Action: Dummy Campaigns
+                              </h3>
+                              <p className="text-sm text-orange-700">
+                                Create dummy campaigns on accounts with 0 campaigns using predefined templates
+                              </p>
+                            </div>
+                            <Button
+                              onClick={() => setStep('dummy-campaigns')}
+                              variant="outline"
+                              className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                            >
+                              <Target className="h-4 w-4 mr-2" />
+                              Manage Dummy Campaigns
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <Building2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -432,6 +469,11 @@ export default function Dashboard() {
                 </Card>
               )}
             </>
+          )}
+
+          {/* Dummy Campaigns Step */}
+          {status === 'authenticated' && step === 'dummy-campaigns' && (
+            <DummyCampaignManager />
           )}
         </div>
       </div>

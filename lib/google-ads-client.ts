@@ -1227,3 +1227,287 @@ export async function getAdGroups(customerId: string, refreshToken: string, camp
 }
 
 export { googleAdsClient }
+
+// Dummy Campaign Creation Function
+export async function createDummyCampaign(
+  customerId: string,
+  refreshToken: string,
+  templateData: {
+    name: string
+    finalUrl: string
+    finalMobileUrl?: string
+    path1?: string
+    path2?: string
+    headlines: string[]
+    descriptions: string[]
+    keywords: string[]
+    budgetAmountMicros: number
+    biddingStrategy: string
+    targetCpa?: number
+    targetRoas?: number
+    locations?: string[]
+    languageCode?: string
+    adGroupName: string
+  }
+): Promise<{ success: boolean; campaignId?: string; budgetId?: string; adGroupId?: string; adId?: string; error?: string }> {
+  try {
+    console.log(`🎯 Creating dummy campaign for customer ${customerId}:`, {
+      name: templateData.name,
+      budgetAmountMicros: templateData.budgetAmountMicros,
+      biddingStrategy: templateData.biddingStrategy,
+      finalUrl: templateData.finalUrl,
+      headlines: templateData.headlines.length,
+      descriptions: templateData.descriptions.length,
+      keywords: templateData.keywords.length
+    })
+    
+    // Append today's date to campaign name (consistent with regular campaigns)
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+    const campaignNameWithDate = `${templateData.name} - ${today}`
+    
+    // Use MCC account as login customer for client account access
+    const knownMCCId = '1284928552'
+    const customer = googleAdsClient.Customer({
+      customer_id: customerId,
+      refresh_token: refreshToken,
+      login_customer_id: knownMCCId,
+    })
+    
+    console.log(`🔑 Using MCC ${knownMCCId} as login customer for client ${customerId}`)
+
+    // Import required modules for atomic operations
+    const { resources, enums, ResourceNames } = require('google-ads-api')
+    
+    // Create a resource name with a temporary resource id (-1)
+    const budgetResourceName = ResourceNames.campaignBudget(customerId, "-1")
+    
+    console.log('💰 Creating dummy campaign budget and campaign atomically...')
+    
+    // Prepare campaign resource
+    const campaignResource = {
+      name: campaignNameWithDate,
+      advertising_channel_type: enums.AdvertisingChannelType.SEARCH,
+      status: enums.CampaignStatus.ENABLED,
+      campaign_budget: budgetResourceName,
+      start_date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
+      network_settings: {
+        target_google_search: true,
+        target_search_network: false,
+        target_content_network: false,
+        target_partner_search_network: false,
+      }
+    }
+
+    // Add bidding strategy
+    if (templateData.biddingStrategy === 'TARGET_CPA' && templateData.targetCpa) {
+      campaignResource.target_cpa = {
+        target_cpa_micros: templateData.targetCpa
+      }
+    } else if (templateData.biddingStrategy === 'TARGET_ROAS' && templateData.targetRoas) {
+      campaignResource.target_roas = {
+        target_roas: templateData.targetRoas
+      }
+    } else if (templateData.biddingStrategy === 'MAXIMIZE_CONVERSIONS') {
+      campaignResource.maximize_conversions = {}
+    } else if (templateData.biddingStrategy === 'MAXIMIZE_CONVERSION_VALUE') {
+      campaignResource.maximize_conversion_value = {}
+    } else {
+      campaignResource.manual_cpc = {
+        enhanced_cpc_enabled: templateData.biddingStrategy === 'ENHANCED_CPC'
+      }
+    }
+    
+    const operations = [
+      {
+        entity: "campaign_budget",
+        operation: "create",
+        resource: {
+          resource_name: budgetResourceName,
+          amount_micros: templateData.budgetAmountMicros,
+          delivery_method: enums.BudgetDeliveryMethod.STANDARD,
+          explicitly_shared: false,
+        },
+      },
+      {
+        entity: "campaign",
+        operation: "create",
+        resource: campaignResource,
+      },
+    ]
+
+    console.log('📊 Dummy campaign operations to execute:', JSON.stringify(operations, null, 2))
+    const response = await customer.mutateResources(operations)
+    console.log('📋 Dummy campaign API Response:', JSON.stringify(response, null, 2))
+    
+    // Extract campaign ID from response
+    const campaignResult = response.find((result: any) => result.campaign)
+    if (!campaignResult?.campaign) {
+      throw new Error('Campaign creation failed - no campaign in response')
+    }
+    
+    const campaignId = campaignResult.campaign.resource_name.split('/')[3]
+    const campaignResourceName = campaignResult.campaign.resource_name
+    const budgetResult = response.find((result: any) => result.campaign_budget)
+    const budgetId = budgetResult?.campaign_budget?.resource_name?.split('/')[3]
+    
+    console.log('✅ Dummy campaign created successfully:', {
+      campaignId,
+      budgetId,
+      campaignResourceName
+    })
+    
+    // Step 2: Create Ad Group
+    console.log('📁 Creating ad group for dummy campaign...')
+    const adGroupResourceName = ResourceNames.adGroup(customerId, "-1")
+    
+    const adGroupOperations = [
+      {
+        entity: "ad_group",
+        operation: "create",
+        resource: {
+          resource_name: adGroupResourceName,
+          name: templateData.adGroupName,
+          campaign: campaignResourceName,
+          status: enums.AdGroupStatus.ENABLED,
+          type: enums.AdGroupType.SEARCH_STANDARD,
+          cpc_bid_micros: 1000000, // $1 default bid
+        },
+      },
+    ]
+    
+    const adGroupResponse = await customer.mutateResources(adGroupOperations)
+    const adGroupResult = adGroupResponse[0]
+    const adGroupId = adGroupResult.ad_group.resource_name.split('/')[3]
+    const adGroupResourceNameFinal = adGroupResult.ad_group.resource_name
+    
+    console.log('✅ Ad group created:', { adGroupId })
+    
+    // Step 3: Create Keywords
+    console.log('🔑 Creating keywords for dummy campaign...')
+    const keywordOperations = templateData.keywords.map((keyword, index) => ({
+      entity: "ad_group_criterion",
+      operation: "create",
+      resource: {
+        resource_name: ResourceNames.adGroupCriterion(customerId, adGroupId, `-${index + 1}`),
+        ad_group: adGroupResourceNameFinal,
+        status: enums.AdGroupCriterionStatus.ENABLED,
+        keyword: {
+          text: keyword,
+          match_type: enums.KeywordMatchType.BROAD,
+        },
+        cpc_bid_micros: 1000000, // $1 bid per keyword
+      },
+    }))
+    
+    if (keywordOperations.length > 0) {
+      await customer.mutateResources(keywordOperations)
+      console.log(`✅ Created ${keywordOperations.length} keywords`)
+    }
+    
+    // Step 4: Create Responsive Search Ad
+    console.log('📝 Creating responsive search ad for dummy campaign...')
+    
+    // Ensure we have the right number of headlines and descriptions
+    const finalHeadlines = templateData.headlines.slice(0, 15) // Max 15 headlines
+    const finalDescriptions = templateData.descriptions.slice(0, 4) // Max 4 descriptions
+    
+    // Ensure minimum requirements
+    if (finalHeadlines.length < 3) {
+      throw new Error('At least 3 headlines are required for responsive search ads')
+    }
+    if (finalDescriptions.length < 2) {
+      throw new Error('At least 2 descriptions are required for responsive search ads')
+    }
+    
+    const adOperations = [
+      {
+        entity: "ad_group_ad",
+        operation: "create",
+        resource: {
+          resource_name: ResourceNames.adGroupAd(customerId, adGroupId, "-1"),
+          ad_group: adGroupResourceNameFinal,
+          status: enums.AdGroupAdStatus.ENABLED,
+          ad: {
+            final_urls: [templateData.finalUrl],
+            final_mobile_urls: templateData.finalMobileUrl ? [templateData.finalMobileUrl] : undefined,
+            path1: templateData.path1,
+            path2: templateData.path2,
+            responsive_search_ad: {
+              headlines: finalHeadlines.map((headline, index) => ({
+                text: headline,
+                pinned_field: index < 3 ? undefined : undefined, // Don't pin any headlines
+              })),
+              descriptions: finalDescriptions.map((description) => ({
+                text: description,
+              })),
+            },
+          },
+        },
+      },
+    ]
+    
+    const adResponse = await customer.mutateResources(adOperations)
+    const adResult = adResponse[0]
+    const adId = adResult.ad_group_ad.resource_name.split('/')[5]
+    
+    console.log('✅ Responsive search ad created:', { adId })
+    
+    // Step 5: Add location targeting if specified
+    if (templateData.locations && templateData.locations.length > 0) {
+      console.log('🌍 Adding location targeting...')
+      const locationOperations = templateData.locations.map((locationId, index) => ({
+        entity: "campaign_criterion",
+        operation: "create",
+        resource: {
+          resource_name: ResourceNames.campaignCriterion(customerId, campaignId, `-${index + 1}`),
+          campaign: campaignResourceName,
+          location: {
+            geo_target_constant: ResourceNames.geoTargetConstant(locationId),
+          },
+          bid_modifier: 1.0,
+        },
+      }))
+      
+      await customer.mutateResources(locationOperations)
+      console.log(`✅ Added ${locationOperations.length} location targets`)
+    }
+    
+    // Step 6: Add language targeting if specified
+    if (templateData.languageCode) {
+      console.log('🗣️ Adding language targeting...')
+      const languageOperations = [
+        {
+          entity: "campaign_criterion",
+          operation: "create",
+          resource: {
+            resource_name: ResourceNames.campaignCriterion(customerId, campaignId, "-100"),
+            campaign: campaignResourceName,
+            language: {
+              language_constant: ResourceNames.languageConstant(templateData.languageCode === 'en' ? '1000' : '1000'),
+            },
+          },
+        },
+      ]
+      
+      await customer.mutateResources(languageOperations)
+      console.log('✅ Added language targeting')
+    }
+    
+    console.log('🎉 Dummy campaign creation completed successfully!')
+    
+    return {
+      success: true,
+      campaignId,
+      budgetId,
+      adGroupId,
+      adId
+    }
+    
+  } catch (error) {
+    console.error('💥 Error creating dummy campaign:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
