@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { createDummyCampaign } from '@/lib/google-ads-client'
 import { getTemplateById, customizeTemplateForAccount } from '@/lib/dummy-campaign-templates'
-import { getRandomTemplate } from '../../../template-manager/route'
+import { getRandomTemplate } from '../../template-manager/route'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
