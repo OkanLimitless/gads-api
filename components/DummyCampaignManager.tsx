@@ -48,6 +48,7 @@ export default function DummyCampaignManager() {
   const [isCreating, setIsCreating] = useState(false)
   const [results, setResults] = useState<CampaignCreationResult[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
 
   // Load eligible accounts and templates on component mount
   useEffect(() => {
@@ -66,6 +67,14 @@ export default function DummyCampaignManager() {
       if (data.success) {
         setEligibleAccounts(data.eligibleAccounts)
         console.log(`✅ Loaded ${data.eligibleAccounts.length} eligible accounts`)
+        
+        // Debug information
+        if (data.debug) {
+          console.log('🔍 Debug Information:')
+          console.log(`📊 Summary: ${data.debug.summary.successCount} success, ${data.debug.summary.errorCount} errors, ${data.debug.summary.eligibleCount} eligible`)
+          console.log('📋 Sample accounts:', data.debug.accountResults)
+          setDebugInfo(data.debug)
+        }
       } else {
         setError(data.error || 'Failed to load eligible accounts')
       }
@@ -253,12 +262,48 @@ export default function DummyCampaignManager() {
                 <span>Loading eligible accounts...</span>
               </div>
             ) : eligibleAccounts.length === 0 ? (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  No eligible accounts found. All client accounts already have campaigns or cannot be accessed.
-                </AlertDescription>
-              </Alert>
+              <>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    No eligible accounts found. All client accounts already have campaigns or cannot be accessed.
+                  </AlertDescription>
+                </Alert>
+                
+                {/* Debug Information */}
+                {debugInfo && (
+                  <Card className="border-yellow-200 bg-yellow-50 mt-4">
+                    <CardHeader>
+                      <CardTitle className="text-yellow-800 text-sm">Debug Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <div className="space-y-2">
+                        <div className="text-yellow-700">
+                          <strong>Summary:</strong> {debugInfo.summary.successCount} accounts checked successfully, 
+                          {debugInfo.summary.errorCount} errors, {debugInfo.summary.eligibleCount} eligible
+                        </div>
+                        
+                        {debugInfo.accountResults && debugInfo.accountResults.length > 0 && (
+                          <div>
+                            <strong className="text-yellow-700">Sample Account Results:</strong>
+                            <div className="mt-2 space-y-1">
+                              {debugInfo.accountResults.slice(0, 5).map((result: any, index: number) => (
+                                <div key={index} className="text-xs bg-yellow-100 p-2 rounded">
+                                  <span className="font-medium">{result.accountName}</span> ({result.accountId}): 
+                                  <span className={result.status === 'success' ? 'text-green-600' : 'text-red-600'}>
+                                    {' '}{result.campaignCount >= 0 ? `${result.campaignCount} campaigns` : 'Error'}
+                                  </span>
+                                  {result.error && <span className="text-red-600"> - {result.error}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {eligibleAccounts.map((account) => (

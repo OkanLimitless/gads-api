@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
 
     // Check campaign count for each account
     const eligibleAccounts = []
+    const accountResults = []
     
     for (const account of clientAccounts) {
       try {
@@ -96,6 +97,15 @@ export async function GET(request: NextRequest) {
         const campaignCount = campaigns.length
         
         console.log(`📈 Account ${account.id} has ${campaignCount} campaigns`)
+        
+        const accountResult = {
+          accountId: account.id,
+          accountName: account.name,
+          campaignCount,
+          status: 'success',
+          eligible: campaignCount === 0
+        }
+        accountResults.push(accountResult)
         
         if (campaignCount === 0) {
           eligibleAccounts.push({
@@ -108,12 +118,36 @@ export async function GET(request: NextRequest) {
         }
       } catch (error) {
         console.error(`⚠️ Error checking campaigns for account ${account.id}:`, error)
+        const accountResult = {
+          accountId: account.id,
+          accountName: account.name,
+          campaignCount: -1,
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          eligible: false
+        }
+        accountResults.push(accountResult)
         // Skip accounts we can't access rather than failing the whole request
         continue
       }
     }
 
     console.log(`🎯 Found ${eligibleAccounts.length} eligible accounts (0 campaigns) out of ${clientAccounts.length} total accounts`)
+    
+    // Log summary of all account results for debugging
+    console.log('📊 Account Analysis Summary:')
+    const successCount = accountResults.filter(r => r.status === 'success').length
+    const errorCount = accountResults.filter(r => r.status === 'error').length
+    const eligibleCount = accountResults.filter(r => r.eligible).length
+    console.log(`✅ Successfully checked: ${successCount}`)
+    console.log(`❌ Errors encountered: ${errorCount}`)
+    console.log(`🎯 Eligible (0 campaigns): ${eligibleCount}`)
+    
+    // Log first few account details for debugging
+    console.log('📋 Sample account results:')
+    accountResults.slice(0, 5).forEach(result => {
+      console.log(`  - ${result.accountName} (${result.accountId}): ${result.campaignCount} campaigns, ${result.status}${result.error ? `, error: ${result.error}` : ''}`)
+    })
 
     return NextResponse.json({
       success: true,
@@ -121,7 +155,15 @@ export async function GET(request: NextRequest) {
       eligibleAccounts,
       totalEligible: eligibleAccounts.length,
       totalChecked: clientAccounts.length,
-      criteria: 'Accounts with 0 campaigns'
+      criteria: 'Accounts with 0 campaigns',
+      debug: {
+        accountResults: accountResults.slice(0, 10), // Include first 10 for debugging
+        summary: {
+          successCount,
+          errorCount,
+          eligibleCount
+        }
+      }
     })
 
   } catch (error) {
