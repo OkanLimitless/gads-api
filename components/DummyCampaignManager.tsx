@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Play, CheckCircle, AlertCircle, Target, Users, Template } from 'lucide-react'
+import { Loader2, Play, CheckCircle, AlertCircle, Target, Users, FileText } from 'lucide-react'
 import { getTemplateOptions } from '@/lib/dummy-campaign-templates'
 
 interface EligibleAccount {
@@ -197,7 +197,7 @@ export default function DummyCampaignManager() {
           {/* Template Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
-              <Template className="h-4 w-4" />
+              <FileText className="h-4 w-4" />
               Select Campaign Template
             </label>
             <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
