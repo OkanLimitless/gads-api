@@ -324,7 +324,7 @@ export default function DummyCampaignManager() {
             </div>
             <Button
               onClick={createDummyCampaigns}
-              disabled={!selectedTemplate || selectedAccounts.size === 0 || isCreating}
+              disabled={selectedAccounts.size === 0 || isCreating}
               className="flex items-center gap-2"
             >
               {isCreating ? (
