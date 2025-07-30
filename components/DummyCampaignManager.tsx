@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Play, CheckCircle, AlertCircle, Target, Users, FileText } from 'lucide-react'
-import { getTemplateOptions } from '@/lib/dummy-campaign-templates'
+
 
 interface EligibleAccount {
   id: string
@@ -18,11 +18,7 @@ interface EligibleAccount {
   campaignCount: number
 }
 
-interface TemplateOption {
-  id: string
-  name: string
-  description: string
-}
+
 
 interface CampaignCreationResult {
   accountId: string
@@ -41,26 +37,16 @@ interface CampaignCreationResult {
 
 export default function DummyCampaignManager() {
   const [eligibleAccounts, setEligibleAccounts] = useState<EligibleAccount[]>([])
-  const [templates, setTemplates] = useState<TemplateOption[]>([])
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [results, setResults] = useState<CampaignCreationResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<any>(null)
-  const [showTemplateCustomization, setShowTemplateCustomization] = useState(false)
-  const [customTemplate, setCustomTemplate] = useState({
-    finalUrl: '',
-    headlines: [''],
-    descriptions: [''],
-    keywords: ['']
-  })
 
-  // Load eligible accounts and templates on component mount
+  // Load eligible accounts on component mount
   useEffect(() => {
     loadEligibleAccounts()
-    loadTemplates()
   }, [])
 
   const loadEligibleAccounts = async () => {
@@ -93,11 +79,7 @@ export default function DummyCampaignManager() {
     }
   }
 
-  const loadTemplates = () => {
-    const templateOptions = getTemplateOptions()
-    setTemplates(templateOptions)
-    console.log(`✅ Loaded ${templateOptions.length} templates`)
-  }
+
 
   const toggleAccountSelection = (accountId: string) => {
     const newSelection = new Set(selectedAccounts)
@@ -118,8 +100,8 @@ export default function DummyCampaignManager() {
   }
 
   const createDummyCampaigns = async () => {
-    if (!selectedTemplate || selectedAccounts.size === 0) {
-      setError('Please select a template and at least one account')
+    if (selectedAccounts.size === 0) {
+      setError('Please select at least one account')
       return
     }
 
@@ -130,7 +112,7 @@ export default function DummyCampaignManager() {
     const creationResults: CampaignCreationResult[] = []
     const selectedAccountIds = Array.from(selectedAccounts)
 
-    console.log(`🚀 Creating dummy campaigns for ${selectedAccountIds.length} accounts using template ${selectedTemplate}`)
+    console.log(`🚀 Creating dummy campaigns for ${selectedAccountIds.length} accounts using random templates`)
 
     for (const accountId of selectedAccountIds) {
       try {
@@ -143,14 +125,8 @@ export default function DummyCampaignManager() {
           },
           body: JSON.stringify({
             accountId,
-            templateId: selectedTemplate,
-            useRandomTemplate: selectedTemplate === 'RANDOM',
-            customizations: selectedTemplate !== 'RANDOM' ? {
-              finalUrl: customTemplate.finalUrl || undefined,
-              headlines: customTemplate.headlines.filter(h => h.trim()).length > 0 ? customTemplate.headlines.filter(h => h.trim()) : undefined,
-              descriptions: customTemplate.descriptions.filter(d => d.trim()).length > 0 ? customTemplate.descriptions.filter(d => d.trim()) : undefined,
-              keywords: customTemplate.keywords.filter(k => k.trim()).length > 0 ? customTemplate.keywords.filter(k => k.trim()) : undefined
-            } : {}
+            useRandomTemplate: true, // Always use random template
+            customizations: {} // No customizations, use template as-is
           }),
         })
 
@@ -216,173 +192,13 @@ export default function DummyCampaignManager() {
             </Alert>
           )}
 
-          {/* Template Selection Mode */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Template Selection Mode
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  id="random"
-                  name="templateMode"
-                  checked={selectedTemplate === 'RANDOM'}
-                  onChange={() => setSelectedTemplate('RANDOM')}
-                />
-                <label htmlFor="random" className="text-sm">Random Template</label>
-                
-                <input
-                  type="radio"
-                  id="manual"
-                  name="templateMode"
-                  checked={selectedTemplate !== 'RANDOM' && selectedTemplate !== ''}
-                  onChange={() => setSelectedTemplate(templates[0]?.id || '')}
-                  className="ml-4"
-                />
-                <label htmlFor="manual" className="text-sm">Manual Selection</label>
-              </div>
-            </div>
-            
-            {selectedTemplate === 'RANDOM' ? (
-              <Alert className="border-green-200 bg-green-50">
-                <AlertDescription className="text-green-700">
-                  🎲 <strong>Random Mode:</strong> A random template will be selected automatically for each campaign creation. 
-                  Perfect for bulk dummy campaign deployment!
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Choose Template</label>
-                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a template..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        <div>
-                          <div className="font-medium">{template.name}</div>
-                          <div className="text-xs text-gray-500">{template.description}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {selectedTemplate && selectedTemplate !== 'RANDOM' && (
-                  <div className="mt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowTemplateCustomization(!showTemplateCustomization)}
-                    >
-                      {showTemplateCustomization ? 'Hide' : 'Show'} Template Customization
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Template Customization */}
-          {showTemplateCustomization && selectedTemplate && selectedTemplate !== 'RANDOM' && (
-            <Card className="border-blue-200 bg-blue-50">
-              <CardHeader>
-                <CardTitle className="text-blue-800 text-sm">Customize Template</CardTitle>
-                <CardDescription className="text-blue-600">
-                  Override template settings (leave empty to use template defaults)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-blue-700">Final URL</label>
-                  <input
-                    type="url"
-                    className="w-full mt-1 px-3 py-2 border border-blue-300 rounded-md text-sm"
-                    placeholder="https://example.com"
-                    value={customTemplate.finalUrl}
-                    onChange={(e) => setCustomTemplate(prev => ({ ...prev, finalUrl: e.target.value }))}
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium text-blue-700">Headlines (one per line)</label>
-                  <textarea
-                    className="w-full mt-1 px-3 py-2 border border-blue-300 rounded-md text-sm"
-                    rows={4}
-                    placeholder="Enter headlines, one per line..."
-                    value={customTemplate.headlines.join('\n')}
-                    onChange={(e) => {
-                      const lines = e.target.value.split('\n')
-                      setCustomTemplate(prev => ({ 
-                        ...prev, 
-                        headlines: lines
-                      }))
-                    }}
-                    onKeyDown={(e) => {
-                      // Allow Enter key to create new lines
-                      if (e.key === 'Enter') {
-                        e.stopPropagation()
-                      }
-                    }}
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium text-blue-700">Descriptions (one per line)</label>
-                  <textarea
-                    className="w-full mt-1 px-3 py-2 border border-blue-300 rounded-md text-sm"
-                    rows={3}
-                    placeholder="Enter descriptions, one per line..."
-                    value={customTemplate.descriptions.join('\n')}
-                    onChange={(e) => {
-                      const lines = e.target.value.split('\n')
-                      setCustomTemplate(prev => ({ 
-                        ...prev, 
-                        descriptions: lines
-                      }))
-                    }}
-                    onKeyDown={(e) => {
-                      // Allow Enter key to create new lines
-                      if (e.key === 'Enter') {
-                        e.stopPropagation()
-                      }
-                    }}
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium text-blue-700">Keywords (one per line)</label>
-                  <textarea
-                    className="w-full mt-1 px-3 py-2 border border-blue-300 rounded-md text-sm"
-                    rows={3}
-                    placeholder="Enter keywords, one per line..."
-                    value={customTemplate.keywords.join('\n')}
-                    onChange={(e) => {
-                      const lines = e.target.value.split('\n')
-                      setCustomTemplate(prev => ({ 
-                        ...prev, 
-                        keywords: lines
-                      }))
-                    }}
-                    onKeyDown={(e) => {
-                      // Allow Enter key to create new lines
-                      if (e.key === 'Enter') {
-                        e.stopPropagation()
-                      }
-                    }}
-                  />
-                </div>
-                
-                <div className="text-xs text-blue-600">
-                  <strong>Note:</strong> Budget (€3), Language (Dutch), and Location (Netherlands) are fixed for all campaigns.
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Random Template Info */}
+          <Alert className="border-green-200 bg-green-50">
+            <AlertDescription className="text-green-700">
+              🎲 <strong>Random Template Mode:</strong> A random template will be selected automatically from your custom templates for each campaign creation. 
+              Each selected account will get a different template for variety!
+            </AlertDescription>
+          </Alert>
 
           {/* Eligible Accounts */}
           <div className="space-y-4">

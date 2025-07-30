@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { createDummyCampaign } from '@/lib/google-ads-client'
-import { getTemplateById, customizeTemplateForAccount } from '@/lib/dummy-campaign-templates'
+
 import { getRandomTemplate } from '../../template-manager/route'
 
 export const runtime = 'nodejs'
@@ -58,16 +58,16 @@ export async function POST(request: NextRequest) {
       console.log(`📋 Using specified template: ${template.name}`)
     }
 
-    // Convert MongoDB template to the format expected by customizeTemplateForAccount
-    const templateForCustomization = {
+    // Prepare template data for campaign creation
+    const customizedTemplate = {
       id: template._id || 'random',
-      name: template.name,
+      name: `${template.name} - Account-${accountId}`,
       description: template.description,
       budgetAmountMicros: 3000000, // €3 daily budget
       biddingStrategy: 'MAXIMIZE_CLICKS' as const,
       locations: ['2528'], // Netherlands
       languageCode: 'nl',
-      adGroupName: template.adGroupName || 'Default Ad Group',
+      adGroupName: `${template.adGroupName || 'Default Ad Group'} - Account-${accountId}`,
       finalUrl: template.finalUrl,
       finalMobileUrl: template.finalMobileUrl,
       path1: template.path1,
@@ -76,13 +76,6 @@ export async function POST(request: NextRequest) {
       descriptions: template.descriptions,
       keywords: template.keywords
     }
-
-    // Customize template for the specific account
-    const customizedTemplate = customizeTemplateForAccount(
-      templateForCustomization,
-      `Account-${accountId}`,
-      customizations
-    )
 
     console.log(`📋 Using template: ${template.name}`)
     console.log(`🔧 Customized for account: ${accountId}`)
