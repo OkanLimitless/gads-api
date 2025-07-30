@@ -49,6 +49,13 @@ export default function DummyCampaignManager() {
   const [results, setResults] = useState<CampaignCreationResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<any>(null)
+  const [showTemplateCustomization, setShowTemplateCustomization] = useState(false)
+  const [customTemplate, setCustomTemplate] = useState({
+    finalUrl: '',
+    headlines: [''],
+    descriptions: [''],
+    keywords: ['']
+  })
 
   // Load eligible accounts and templates on component mount
   useEffect(() => {
@@ -137,7 +144,12 @@ export default function DummyCampaignManager() {
           body: JSON.stringify({
             accountId,
             templateId: selectedTemplate,
-            customizations: {} // Can be extended later for custom modifications
+            customizations: {
+              finalUrl: customTemplate.finalUrl || undefined,
+              headlines: customTemplate.headlines.length > 0 ? customTemplate.headlines : undefined,
+              descriptions: customTemplate.descriptions.length > 0 ? customTemplate.descriptions : undefined,
+              keywords: customTemplate.keywords.length > 0 ? customTemplate.keywords : undefined
+            }
           }),
         })
 
@@ -224,7 +236,90 @@ export default function DummyCampaignManager() {
                 ))}
               </SelectContent>
             </Select>
+            
+            {selectedTemplate && (
+              <div className="mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTemplateCustomization(!showTemplateCustomization)}
+                >
+                  {showTemplateCustomization ? 'Hide' : 'Show'} Template Customization
+                </Button>
+              </div>
+            )}
           </div>
+
+          {/* Template Customization */}
+          {showTemplateCustomization && selectedTemplate && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="text-blue-800 text-sm">Customize Template</CardTitle>
+                <CardDescription className="text-blue-600">
+                  Override template settings (leave empty to use template defaults)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-blue-700">Final URL</label>
+                  <input
+                    type="url"
+                    className="w-full mt-1 px-3 py-2 border border-blue-300 rounded-md text-sm"
+                    placeholder="https://example.com"
+                    value={customTemplate.finalUrl}
+                    onChange={(e) => setCustomTemplate(prev => ({ ...prev, finalUrl: e.target.value }))}
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-blue-700">Headlines (one per line)</label>
+                  <textarea
+                    className="w-full mt-1 px-3 py-2 border border-blue-300 rounded-md text-sm"
+                    rows={4}
+                    placeholder="Enter headlines, one per line..."
+                    value={customTemplate.headlines.join('\n')}
+                    onChange={(e) => setCustomTemplate(prev => ({ 
+                      ...prev, 
+                      headlines: e.target.value.split('\n').filter(h => h.trim()) 
+                    }))}
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-blue-700">Descriptions (one per line)</label>
+                  <textarea
+                    className="w-full mt-1 px-3 py-2 border border-blue-300 rounded-md text-sm"
+                    rows={3}
+                    placeholder="Enter descriptions, one per line..."
+                    value={customTemplate.descriptions.join('\n')}
+                    onChange={(e) => setCustomTemplate(prev => ({ 
+                      ...prev, 
+                      descriptions: e.target.value.split('\n').filter(d => d.trim()) 
+                    }))}
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-blue-700">Keywords (one per line)</label>
+                  <textarea
+                    className="w-full mt-1 px-3 py-2 border border-blue-300 rounded-md text-sm"
+                    rows={3}
+                    placeholder="Enter keywords, one per line..."
+                    value={customTemplate.keywords.join('\n')}
+                    onChange={(e) => setCustomTemplate(prev => ({ 
+                      ...prev, 
+                      keywords: e.target.value.split('\n').filter(k => k.trim()) 
+                    }))}
+                  />
+                </div>
+                
+                <div className="text-xs text-blue-600">
+                  <strong>Note:</strong> Budget (€3), Language (Dutch), and Location (Netherlands) are fixed for all campaigns.
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Eligible Accounts */}
           <div className="space-y-4">

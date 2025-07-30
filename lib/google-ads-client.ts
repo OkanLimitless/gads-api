@@ -1368,21 +1368,41 @@ export async function createDummyCampaign(
     const response = await customer.mutateResources(operations)
     console.log('📋 Dummy campaign API Response:', JSON.stringify(response, null, 2))
     
-    // Ensure response is an array
-    const responseArray = Array.isArray(response) ? response : [response]
-    console.log('📋 Response array length:', responseArray.length)
+    // Handle different response formats
+    let campaignResult, budgetResult, campaignId, campaignResourceName, budgetId
     
-    // Extract campaign ID from response
-    const campaignResult = responseArray.find((result: any) => result?.campaign)
+    if (Array.isArray(response)) {
+      console.log('📋 Response is array, length:', response.length)
+      campaignResult = response.find((result: any) => result?.campaign)
+      budgetResult = response.find((result: any) => result?.campaign_budget)
+    } else if (response?.results) {
+      console.log('📋 Response has results array, length:', response.results.length)
+      campaignResult = response.results.find((result: any) => result?.campaign)
+      budgetResult = response.results.find((result: any) => result?.campaign_budget)
+    } else if (response?.campaign) {
+      console.log('📋 Response has direct campaign')
+      campaignResult = { campaign: response.campaign }
+      budgetResult = response.campaign_budget ? { campaign_budget: response.campaign_budget } : null
+    } else {
+      console.log('📋 Response is single object, wrapping in array')
+      campaignResult = response
+      budgetResult = response
+    }
+    
     if (!campaignResult?.campaign) {
-      console.error('❌ No campaign found in response:', responseArray)
+      console.error('❌ No campaign found in response structure:', response)
+      console.error('❌ Checked campaignResult:', campaignResult)
       throw new Error('Campaign creation failed - no campaign in response')
     }
     
-    const campaignId = campaignResult.campaign.resource_name.split('/')[3]
-    const campaignResourceName = campaignResult.campaign.resource_name
-    const budgetResult = responseArray.find((result: any) => result?.campaign_budget)
-    const budgetId = budgetResult?.campaign_budget?.resource_name?.split('/')[3]
+    campaignId = campaignResult.campaign.resource_name?.split('/')[3]
+    campaignResourceName = campaignResult.campaign.resource_name
+    budgetId = budgetResult?.campaign_budget?.resource_name?.split('/')[3]
+    
+    if (!campaignId) {
+      console.error('❌ Could not extract campaign ID from resource name:', campaignResult.campaign.resource_name)
+      throw new Error('Campaign creation failed - could not extract campaign ID')
+    }
     
     console.log('✅ Dummy campaign created successfully:', {
       campaignId,
@@ -1410,7 +1430,23 @@ export async function createDummyCampaign(
     ]
     
     const adGroupResponse = await customer.mutateResources(adGroupOperations)
-    const adGroupResult = adGroupResponse[0]
+    console.log('📋 Ad group creation response:', JSON.stringify(adGroupResponse, null, 2))
+    
+    // Handle ad group response format
+    let adGroupResult
+    if (Array.isArray(adGroupResponse)) {
+      adGroupResult = adGroupResponse[0]
+    } else if (adGroupResponse?.results) {
+      adGroupResult = adGroupResponse.results[0]
+    } else {
+      adGroupResult = adGroupResponse
+    }
+    
+    if (!adGroupResult?.ad_group) {
+      console.error('❌ No ad group found in response:', adGroupResponse)
+      throw new Error('Ad group creation failed - no ad group in response')
+    }
+    
     const adGroupId = adGroupResult.ad_group.resource_name.split('/')[3]
     const adGroupResourceNameFinal = adGroupResult.ad_group.resource_name
     
@@ -1436,8 +1472,14 @@ export async function createDummyCampaign(
     if (keywordOperations.length > 0) {
       try {
         const keywordResponse = await customer.mutateResources(keywordOperations)
-        console.log(`✅ Created ${keywordOperations.length} keywords`)
         console.log('📋 Keyword creation response:', JSON.stringify(keywordResponse, null, 2))
+        
+        // Check if keywords were created successfully
+        const keywordResults = Array.isArray(keywordResponse) ? keywordResponse : 
+                              keywordResponse?.results ? keywordResponse.results : [keywordResponse]
+        const successfulKeywords = keywordResults.filter((result: any) => result?.ad_group_criterion)
+        
+        console.log(`✅ Created ${successfulKeywords.length}/${keywordOperations.length} keywords`)
       } catch (keywordError) {
         console.error('💥 Error creating keywords:', keywordError)
         // Continue without failing the entire campaign creation
@@ -1486,20 +1528,32 @@ export async function createDummyCampaign(
       },
     ]
     
-    try {
-      const adResponse = await customer.mutateResources(adOperations)
-      console.log('📋 Ad creation response:', JSON.stringify(adResponse, null, 2))
-      
-      const adResponseArray = Array.isArray(adResponse) ? adResponse : [adResponse]
-      const adResult = adResponseArray[0]
-      const adId = adResult?.ad_group_ad?.resource_name?.split('/')[5]
-      
-      console.log('✅ Responsive search ad created:', { adId })
-    } catch (adError) {
-      console.error('💥 Error creating responsive search ad:', adError)
-      // Continue without failing the entire campaign creation
-      var adId = 'failed'
-    }
+          try {
+        const adResponse = await customer.mutateResources(adOperations)
+        console.log('📋 Ad creation response:', JSON.stringify(adResponse, null, 2))
+        
+        // Handle ad response format
+        let adResult
+        if (Array.isArray(adResponse)) {
+          adResult = adResponse[0]
+        } else if (adResponse?.results) {
+          adResult = adResponse.results[0]
+        } else {
+          adResult = adResponse
+        }
+        
+        if (!adResult?.ad_group_ad) {
+          console.error('❌ No ad found in response:', adResponse)
+          var adId = 'failed'
+        } else {
+          const adId = adResult.ad_group_ad.resource_name?.split('/')[5]
+          console.log('✅ Responsive search ad created:', { adId })
+        }
+      } catch (adError) {
+        console.error('💥 Error creating responsive search ad:', adError)
+        // Continue without failing the entire campaign creation
+        var adId = 'failed'
+      }
     
     // Step 5: Add location targeting if specified
     if (templateData.locations && templateData.locations.length > 0) {
