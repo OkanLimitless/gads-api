@@ -1368,41 +1368,63 @@ export async function createDummyCampaign(
     const response = await customer.mutateResources(operations)
     console.log('📋 Dummy campaign API Response:', JSON.stringify(response, null, 2))
     
-    // Handle different response formats
+    // Handle different response formats - Updated for mutate_operation_responses
     let campaignResult, budgetResult, campaignId, campaignResourceName, budgetId
     
-    if (Array.isArray(response)) {
+    if (response?.mutate_operation_responses) {
+      console.log('📋 Response has mutate_operation_responses, length:', response.mutate_operation_responses.length)
+      campaignResult = response.mutate_operation_responses.find((result: any) => result?.campaign_result)
+      budgetResult = response.mutate_operation_responses.find((result: any) => result?.campaign_budget_result)
+      
+      if (campaignResult?.campaign_result) {
+        campaignId = campaignResult.campaign_result.resource_name?.split('/')[3]
+        campaignResourceName = campaignResult.campaign_result.resource_name
+      }
+      
+      if (budgetResult?.campaign_budget_result) {
+        budgetId = budgetResult.campaign_budget_result.resource_name?.split('/')[3]
+      }
+    } else if (Array.isArray(response)) {
       console.log('📋 Response is array, length:', response.length)
       campaignResult = response.find((result: any) => result?.campaign)
       budgetResult = response.find((result: any) => result?.campaign_budget)
+      
+      if (campaignResult?.campaign) {
+        campaignId = campaignResult.campaign.resource_name?.split('/')[3]
+        campaignResourceName = campaignResult.campaign.resource_name
+      }
+      
+      if (budgetResult?.campaign_budget) {
+        budgetId = budgetResult.campaign_budget.resource_name?.split('/')[3]
+      }
     } else if (response?.results) {
       console.log('📋 Response has results array, length:', response.results.length)
       campaignResult = response.results.find((result: any) => result?.campaign)
       budgetResult = response.results.find((result: any) => result?.campaign_budget)
+      
+      if (campaignResult?.campaign) {
+        campaignId = campaignResult.campaign.resource_name?.split('/')[3]
+        campaignResourceName = campaignResult.campaign.resource_name
+      }
+      
+      if (budgetResult?.campaign_budget) {
+        budgetId = budgetResult.campaign_budget.resource_name?.split('/')[3]
+      }
     } else if (response?.campaign) {
       console.log('📋 Response has direct campaign')
-      campaignResult = { campaign: response.campaign }
-      budgetResult = response.campaign_budget ? { campaign_budget: response.campaign_budget } : null
-    } else {
-      console.log('📋 Response is single object, wrapping in array')
-      campaignResult = response
-      budgetResult = response
+      campaignId = response.campaign.resource_name?.split('/')[3]
+      campaignResourceName = response.campaign.resource_name
+      budgetId = response.campaign_budget?.resource_name?.split('/')[3]
     }
-    
-    if (!campaignResult?.campaign) {
-      console.error('❌ No campaign found in response structure:', response)
-      console.error('❌ Checked campaignResult:', campaignResult)
-      throw new Error('Campaign creation failed - no campaign in response')
-    }
-    
-    campaignId = campaignResult.campaign.resource_name?.split('/')[3]
-    campaignResourceName = campaignResult.campaign.resource_name
-    budgetId = budgetResult?.campaign_budget?.resource_name?.split('/')[3]
     
     if (!campaignId) {
-      console.error('❌ Could not extract campaign ID from resource name:', campaignResult.campaign.resource_name)
-      throw new Error('Campaign creation failed - could not extract campaign ID')
+      console.error('❌ No campaign ID found in response structure:', response)
+      console.error('❌ Checked campaignResult:', campaignResult)
+      console.error('❌ Checked budgetResult:', budgetResult)
+      throw new Error('Campaign creation failed - no campaign ID in response')
     }
+    
+
     
     console.log('✅ Dummy campaign created successfully:', {
       campaignId,
