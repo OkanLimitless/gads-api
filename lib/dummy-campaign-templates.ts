@@ -63,10 +63,10 @@ export const DUMMY_CAMPAIGN_TEMPLATES: DummyCampaignTemplate[] = [
       'fashion trends',
       'premium apparel'
     ],
-    budgetAmountMicros: 20000000, // $20 daily budget
+    budgetAmountMicros: 3000000, // €3 daily budget
     biddingStrategy: 'MAXIMIZE_CLICKS',
-    locations: ['2840'], // United States
-    languageCode: 'en',
+    locations: ['2528'], // Netherlands
+    languageCode: 'nl',
     adGroupName: 'Fashion Collection'
   },
   {
@@ -112,10 +112,10 @@ export const DUMMY_CAMPAIGN_TEMPLATES: DummyCampaignTemplate[] = [
       'seasonal menu',
       'local dining'
     ],
-    budgetAmountMicros: 15000000, // $15 daily budget
+    budgetAmountMicros: 3000000, // €3 daily budget
     biddingStrategy: 'MAXIMIZE_CLICKS',
-    locations: ['2840'], // United States - would be customized per location
-    languageCode: 'en',
+    locations: ['2528'], // Netherlands
+    languageCode: 'nl',
     adGroupName: 'Restaurant Services'
   },
   {
@@ -161,10 +161,10 @@ export const DUMMY_CAMPAIGN_TEMPLATES: DummyCampaignTemplate[] = [
       'workout facility',
       'fitness programs'
     ],
-    budgetAmountMicros: 25000000, // $25 daily budget
+    budgetAmountMicros: 3000000, // €3 daily budget
     biddingStrategy: 'MAXIMIZE_CLICKS',
-    locations: ['2840'], // United States
-    languageCode: 'en',
+    locations: ['2528'], // Netherlands
+    languageCode: 'nl',
     adGroupName: 'Fitness Services'
   },
   {
@@ -210,11 +210,10 @@ export const DUMMY_CAMPAIGN_TEMPLATES: DummyCampaignTemplate[] = [
       'tech support',
       'enterprise solutions'
     ],
-    budgetAmountMicros: 30000000, // $30 daily budget
-    biddingStrategy: 'TARGET_CPA',
-    targetCpa: 50000000, // $50 target CPA
-    locations: ['2840'], // United States
-    languageCode: 'en',
+    budgetAmountMicros: 3000000, // €3 daily budget
+    biddingStrategy: 'MAXIMIZE_CLICKS',
+    locations: ['2528'], // Netherlands
+    languageCode: 'nl',
     adGroupName: 'Technology Solutions'
   },
   {
@@ -260,10 +259,10 @@ export const DUMMY_CAMPAIGN_TEMPLATES: DummyCampaignTemplate[] = [
       'home maintenance',
       'repair services'
     ],
-    budgetAmountMicros: 20000000, // $20 daily budget
+    budgetAmountMicros: 3000000, // €3 daily budget
     biddingStrategy: 'MAXIMIZE_CLICKS',
-    locations: ['2840'], // United States
-    languageCode: 'en',
+    locations: ['2528'], // Netherlands
+    languageCode: 'nl',
     adGroupName: 'Home Services'
   }
 ]

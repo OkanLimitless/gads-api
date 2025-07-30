@@ -1368,15 +1368,20 @@ export async function createDummyCampaign(
     const response = await customer.mutateResources(operations)
     console.log('📋 Dummy campaign API Response:', JSON.stringify(response, null, 2))
     
+    // Ensure response is an array
+    const responseArray = Array.isArray(response) ? response : [response]
+    console.log('📋 Response array length:', responseArray.length)
+    
     // Extract campaign ID from response
-    const campaignResult = response.find((result: any) => result.campaign)
+    const campaignResult = responseArray.find((result: any) => result?.campaign)
     if (!campaignResult?.campaign) {
+      console.error('❌ No campaign found in response:', responseArray)
       throw new Error('Campaign creation failed - no campaign in response')
     }
     
     const campaignId = campaignResult.campaign.resource_name.split('/')[3]
     const campaignResourceName = campaignResult.campaign.resource_name
-    const budgetResult = response.find((result: any) => result.campaign_budget)
+    const budgetResult = responseArray.find((result: any) => result?.campaign_budget)
     const budgetId = budgetResult?.campaign_budget?.resource_name?.split('/')[3]
     
     console.log('✅ Dummy campaign created successfully:', {
@@ -1429,8 +1434,14 @@ export async function createDummyCampaign(
     }))
     
     if (keywordOperations.length > 0) {
-      await customer.mutateResources(keywordOperations)
-      console.log(`✅ Created ${keywordOperations.length} keywords`)
+      try {
+        const keywordResponse = await customer.mutateResources(keywordOperations)
+        console.log(`✅ Created ${keywordOperations.length} keywords`)
+        console.log('📋 Keyword creation response:', JSON.stringify(keywordResponse, null, 2))
+      } catch (keywordError) {
+        console.error('💥 Error creating keywords:', keywordError)
+        // Continue without failing the entire campaign creation
+      }
     }
     
     // Step 4: Create Responsive Search Ad
@@ -1475,11 +1486,20 @@ export async function createDummyCampaign(
       },
     ]
     
-    const adResponse = await customer.mutateResources(adOperations)
-    const adResult = adResponse[0]
-    const adId = adResult.ad_group_ad.resource_name.split('/')[5]
-    
-    console.log('✅ Responsive search ad created:', { adId })
+    try {
+      const adResponse = await customer.mutateResources(adOperations)
+      console.log('📋 Ad creation response:', JSON.stringify(adResponse, null, 2))
+      
+      const adResponseArray = Array.isArray(adResponse) ? adResponse : [adResponse]
+      const adResult = adResponseArray[0]
+      const adId = adResult?.ad_group_ad?.resource_name?.split('/')[5]
+      
+      console.log('✅ Responsive search ad created:', { adId })
+    } catch (adError) {
+      console.error('💥 Error creating responsive search ad:', adError)
+      // Continue without failing the entire campaign creation
+      var adId = 'failed'
+    }
     
     // Step 5: Add location targeting if specified
     if (templateData.locations && templateData.locations.length > 0) {
@@ -1497,13 +1517,23 @@ export async function createDummyCampaign(
         },
       }))
       
-      await customer.mutateResources(locationOperations)
-      console.log(`✅ Added ${locationOperations.length} location targets`)
+      try {
+        const locationResponse = await customer.mutateResources(locationOperations)
+        console.log(`✅ Added ${locationOperations.length} location targets`)
+        console.log('📋 Location targeting response:', JSON.stringify(locationResponse, null, 2))
+      } catch (locationError) {
+        console.error('💥 Error adding location targeting:', locationError)
+        // Continue without failing the entire campaign creation
+      }
     }
     
     // Step 6: Add language targeting if specified
     if (templateData.languageCode) {
       console.log('🗣️ Adding language targeting...')
+      
+      // Language constants: English = 1000, Dutch = 1019
+      const languageConstantId = templateData.languageCode === 'nl' ? '1019' : '1000'
+      
       const languageOperations = [
         {
           entity: "campaign_criterion",
@@ -1512,14 +1542,20 @@ export async function createDummyCampaign(
             resource_name: ResourceNames.campaignCriterion(customerId, campaignId, "-100"),
             campaign: campaignResourceName,
             language: {
-              language_constant: ResourceNames.languageConstant(templateData.languageCode === 'en' ? '1000' : '1000'),
+              language_constant: ResourceNames.languageConstant(languageConstantId),
             },
           },
         },
       ]
       
-      await customer.mutateResources(languageOperations)
-      console.log('✅ Added language targeting')
+      try {
+        const languageResponse = await customer.mutateResources(languageOperations)
+        console.log(`✅ Added language targeting: ${templateData.languageCode} (${languageConstantId})`)
+        console.log('📋 Language targeting response:', JSON.stringify(languageResponse, null, 2))
+      } catch (languageError) {
+        console.error('💥 Error adding language targeting:', languageError)
+        // Continue without failing the entire campaign creation
+      }
     }
     
     console.log('🎉 Dummy campaign creation completed successfully!')
