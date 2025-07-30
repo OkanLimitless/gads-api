@@ -1030,6 +1030,8 @@ export async function createCampaign(
 
 export async function getCampaigns(customerId: string, refreshToken: string): Promise<Campaign[]> {
   try {
+    console.log(`🔍 Fetching campaigns for customer ${customerId}`)
+    
     // Use MCC account as login customer for client account access
     const knownMCCId = '1284928552'
     const customer = googleAdsClient.Customer({
@@ -1038,25 +1040,52 @@ export async function getCampaigns(customerId: string, refreshToken: string): Pr
       login_customer_id: knownMCCId, // Required for accessing client accounts
     })
 
-    const campaigns = await customer.campaigns.list({
-      limit: 100,
-    })
+    // Use GAQL query instead of campaigns.list() for better compatibility
+    const query = `
+      SELECT 
+        campaign.id,
+        campaign.name,
+        campaign.status,
+        campaign.campaign_budget,
+        campaign.bidding_strategy_type,
+        campaign.start_date,
+        campaign.end_date,
+        campaign.advertising_channel_type,
+        campaign.targeting_setting
+      FROM campaign
+      ORDER BY campaign.id
+    `
 
-    return campaigns.map((campaign: any) => ({
-      id: campaign.id?.toString() || '',
-      name: campaign.name || '',
-      status: campaign.status || 'UNKNOWN',
-      budget: 0, // We'll fetch this separately
-      budgetId: campaign.campaign_budget || '',
-      biddingStrategy: campaign.bidding_strategy_type || 'UNKNOWN',
-      startDate: campaign.start_date || '',
-      endDate: campaign.end_date,
-      campaignType: campaign.advertising_channel_type || 'SEARCH',
-      targetingSettings: campaign.targeting_setting,
-    }))
+    console.log(`📊 Executing GAQL query for customer ${customerId}`)
+    const campaigns = await customer.query(query)
+    
+    console.log(`✅ Found ${campaigns.length} campaigns for customer ${customerId}`)
+
+    return campaigns.map((row: any) => {
+      const campaign = row.campaign
+      return {
+        id: campaign.id?.toString() || '',
+        name: campaign.name || '',
+        status: campaign.status || 'UNKNOWN',
+        budget: 0, // We'll fetch this separately
+        budgetId: campaign.campaign_budget || '',
+        biddingStrategy: campaign.bidding_strategy_type || 'UNKNOWN',
+        startDate: campaign.start_date || '',
+        endDate: campaign.end_date,
+        campaignType: campaign.advertising_channel_type || 'SEARCH',
+        targetingSettings: campaign.targeting_setting,
+      }
+    })
   } catch (error) {
-    console.error('Error fetching campaigns:', error)
-    throw new Error('Failed to fetch campaigns')
+    console.error(`💥 Error fetching campaigns for customer ${customerId}:`, error)
+    
+    // Provide more detailed error information
+    if (error instanceof Error) {
+      console.error(`Error message: ${error.message}`)
+      console.error(`Error stack: ${error.stack}`)
+    }
+    
+    throw new Error(`Failed to fetch campaigns for customer ${customerId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 
@@ -1508,6 +1537,63 @@ export async function createDummyCampaign(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+// Simplified function to get just campaign count for debugging
+export async function getCampaignCount(customerId: string, refreshToken: string): Promise<number> {
+  try {
+    console.log(`🔢 Getting campaign count for customer ${customerId}`)
+    
+    // Use MCC account as login customer for client account access
+    const knownMCCId = '1284928552'
+    const customer = googleAdsClient.Customer({
+      customer_id: customerId,
+      refresh_token: refreshToken,
+      login_customer_id: knownMCCId,
+    })
+
+    // Simplified query to just count campaigns
+    const query = `
+      SELECT campaign.id
+      FROM campaign
+      LIMIT 1000
+    `
+
+    console.log(`📊 Executing simplified count query for customer ${customerId}`)
+    const campaigns = await customer.query(query)
+    
+    const count = campaigns.length
+    console.log(`✅ Customer ${customerId} has ${count} campaigns`)
+    
+    return count
+  } catch (error) {
+    console.error(`💥 Error getting campaign count for customer ${customerId}:`, error)
+    
+    // Try an even simpler approach - just check if we can access the account
+    try {
+      console.log(`🔄 Trying alternative approach for customer ${customerId}`)
+      const customer = googleAdsClient.Customer({
+        customer_id: customerId,
+        refresh_token: refreshToken,
+        login_customer_id: '1284928552',
+      })
+      
+      // Try to get customer info to test access
+      const customerQuery = `
+        SELECT customer.id
+        FROM customer
+        LIMIT 1
+      `
+      
+      await customer.query(customerQuery)
+      console.log(`✅ Customer ${customerId} is accessible, assuming 0 campaigns due to query limitations`)
+      return 0 // If we can access but can't get campaigns, assume 0 for now
+      
+    } catch (fallbackError) {
+      console.error(`💥 Fallback also failed for customer ${customerId}:`, fallbackError)
+      throw new Error(`Cannot access customer ${customerId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 }

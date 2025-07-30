@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { GoogleAdsApi } from 'google-ads-api'
-import { getCampaigns } from '@/lib/google-ads-client'
+import { getCampaigns, getCampaignCount } from '@/lib/google-ads-client'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -93,8 +93,16 @@ export async function GET(request: NextRequest) {
     for (const account of clientAccounts) {
       try {
         console.log(`📊 Checking campaigns for account ${account.id} (${account.name})`)
-        const campaigns = await getCampaigns(account.id, session.refreshToken)
-        const campaignCount = campaigns.length
+        
+        // Try the simpler campaign count approach first
+        let campaignCount: number
+        try {
+          campaignCount = await getCampaignCount(account.id, session.refreshToken)
+        } catch (countError) {
+          console.log(`⚠️ Campaign count failed, trying full getCampaigns for ${account.id}`)
+          const campaigns = await getCampaigns(account.id, session.refreshToken)
+          campaignCount = campaigns.length
+        }
         
         console.log(`📈 Account ${account.id} has ${campaignCount} campaigns`)
         
@@ -118,6 +126,13 @@ export async function GET(request: NextRequest) {
         }
       } catch (error) {
         console.error(`⚠️ Error checking campaigns for account ${account.id}:`, error)
+        
+        // Log more detailed error information
+        if (error instanceof Error) {
+          console.error(`Error details for ${account.id}: ${error.message}`)
+          console.error(`Error stack: ${error.stack}`)
+        }
+        
         const accountResult = {
           accountId: account.id,
           accountName: account.name,
