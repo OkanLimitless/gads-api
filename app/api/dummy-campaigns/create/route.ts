@@ -58,9 +58,28 @@ export async function POST(request: NextRequest) {
       console.log(`📋 Using specified template: ${template.name}`)
     }
 
+    // Convert MongoDB template to the format expected by customizeTemplateForAccount
+    const templateForCustomization = {
+      id: template._id || 'random',
+      name: template.name,
+      description: template.description,
+      budgetAmountMicros: 3000000, // €3 daily budget
+      biddingStrategy: 'MAXIMIZE_CLICKS' as const,
+      locations: ['2528'], // Netherlands
+      languageCode: 'nl',
+      adGroupName: template.adGroupName || 'Default Ad Group',
+      finalUrl: template.finalUrl,
+      finalMobileUrl: template.finalMobileUrl,
+      path1: template.path1,
+      path2: template.path2,
+      headlines: template.headlines,
+      descriptions: template.descriptions,
+      keywords: template.keywords
+    }
+
     // Customize template for the specific account
     const customizedTemplate = customizeTemplateForAccount(
-      template,
+      templateForCustomization,
       `Account-${accountId}`,
       customizations
     )

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Plus, Edit, Trash2, Save, X, FileText, Download, Upload } from 'lucide-react'
 
 interface TemplateData {
-  id: string
+  _id?: string
   name: string
   description: string
   finalUrl: string
@@ -31,7 +31,6 @@ export default function TemplateManager() {
 
   // Default empty template
   const emptyTemplate: TemplateData = {
-    id: '',
     name: '',
     description: '',
     finalUrl: '',
@@ -186,7 +185,7 @@ export default function TemplateManager() {
           )}
 
           <div className="flex items-center gap-4 mb-6">
-            <Button onClick={() => { setIsCreating(true); setEditingTemplate({ ...emptyTemplate, id: Date.now().toString() }) }}>
+            <Button onClick={() => { setIsCreating(true); setEditingTemplate({ ...emptyTemplate }) }}>
               <Plus className="h-4 w-4 mr-2" />
               Add New Template
             </Button>
@@ -222,7 +221,7 @@ export default function TemplateManager() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {templates.map((template) => (
-                <Card key={template.id} className="hover:shadow-md transition-shadow">
+                <Card key={template._id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
@@ -242,13 +241,13 @@ export default function TemplateManager() {
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteTemplate(template.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                                                 <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => deleteTemplate(template._id!)}
+                         >
+                           <Trash2 className="h-3 w-3" />
+                         </Button>
                       </div>
                     </div>
                     <div className="text-xs text-blue-600 truncate">
