@@ -147,9 +147,9 @@ export default function DummyCampaignManager() {
             useRandomTemplate: selectedTemplate === 'RANDOM',
             customizations: selectedTemplate !== 'RANDOM' ? {
               finalUrl: customTemplate.finalUrl || undefined,
-              headlines: customTemplate.headlines.length > 0 ? customTemplate.headlines : undefined,
-              descriptions: customTemplate.descriptions.length > 0 ? customTemplate.descriptions : undefined,
-              keywords: customTemplate.keywords.length > 0 ? customTemplate.keywords : undefined
+              headlines: customTemplate.headlines.filter(h => h.trim()).length > 0 ? customTemplate.headlines.filter(h => h.trim()) : undefined,
+              descriptions: customTemplate.descriptions.filter(d => d.trim()).length > 0 ? customTemplate.descriptions.filter(d => d.trim()) : undefined,
+              keywords: customTemplate.keywords.filter(k => k.trim()).length > 0 ? customTemplate.keywords.filter(k => k.trim()) : undefined
             } : {}
           }),
         })
@@ -315,10 +315,19 @@ export default function DummyCampaignManager() {
                     rows={4}
                     placeholder="Enter headlines, one per line..."
                     value={customTemplate.headlines.join('\n')}
-                    onChange={(e) => setCustomTemplate(prev => ({ 
-                      ...prev, 
-                      headlines: e.target.value.split('\n').filter(h => h.trim()) 
-                    }))}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n')
+                      setCustomTemplate(prev => ({ 
+                        ...prev, 
+                        headlines: lines
+                      }))
+                    }}
+                    onKeyDown={(e) => {
+                      // Allow Enter key to create new lines
+                      if (e.key === 'Enter') {
+                        e.stopPropagation()
+                      }
+                    }}
                   />
                 </div>
                 
@@ -329,10 +338,19 @@ export default function DummyCampaignManager() {
                     rows={3}
                     placeholder="Enter descriptions, one per line..."
                     value={customTemplate.descriptions.join('\n')}
-                    onChange={(e) => setCustomTemplate(prev => ({ 
-                      ...prev, 
-                      descriptions: e.target.value.split('\n').filter(d => d.trim()) 
-                    }))}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n')
+                      setCustomTemplate(prev => ({ 
+                        ...prev, 
+                        descriptions: lines
+                      }))
+                    }}
+                    onKeyDown={(e) => {
+                      // Allow Enter key to create new lines
+                      if (e.key === 'Enter') {
+                        e.stopPropagation()
+                      }
+                    }}
                   />
                 </div>
                 
@@ -343,10 +361,19 @@ export default function DummyCampaignManager() {
                     rows={3}
                     placeholder="Enter keywords, one per line..."
                     value={customTemplate.keywords.join('\n')}
-                    onChange={(e) => setCustomTemplate(prev => ({ 
-                      ...prev, 
-                      keywords: e.target.value.split('\n').filter(k => k.trim()) 
-                    }))}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n')
+                      setCustomTemplate(prev => ({ 
+                        ...prev, 
+                        keywords: lines
+                      }))
+                    }}
+                    onKeyDown={(e) => {
+                      // Allow Enter key to create new lines
+                      if (e.key === 'Enter') {
+                        e.stopPropagation()
+                      }
+                    }}
                   />
                 </div>
                 

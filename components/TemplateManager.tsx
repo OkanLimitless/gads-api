@@ -110,14 +110,25 @@ export default function TemplateManager() {
   const handleSave = () => {
     if (!editingTemplate) return
     
+    const validHeadlines = editingTemplate.headlines.filter(h => h.trim()).length
+    const validDescriptions = editingTemplate.descriptions.filter(d => d.trim()).length  
+    const validKeywords = editingTemplate.keywords.filter(k => k.trim()).length
+    
     if (!editingTemplate.name || !editingTemplate.finalUrl || 
-        editingTemplate.headlines.length < 3 || editingTemplate.descriptions.length < 2 ||
-        editingTemplate.keywords.length === 0) {
+        validHeadlines < 3 || validDescriptions < 2 || validKeywords === 0) {
       setError('Please fill in all required fields: Name, URL, at least 3 headlines, 2 descriptions, and keywords')
       return
     }
     
-    saveTemplate(editingTemplate)
+    // Clean up empty lines before saving
+    const cleanedTemplate = {
+      ...editingTemplate,
+      headlines: editingTemplate.headlines.filter(h => h.trim()),
+      descriptions: editingTemplate.descriptions.filter(d => d.trim()),
+      keywords: editingTemplate.keywords.filter(k => k.trim())
+    }
+    
+    saveTemplate(cleanedTemplate)
   }
 
   const exportTemplates = () => {
@@ -343,13 +354,22 @@ export default function TemplateManager() {
                 rows={6}
                 placeholder="Enter headlines, one per line..."
                 value={editingTemplate.headlines.join('\n')}
-                onChange={(e) => setEditingTemplate(prev => prev ? { 
-                  ...prev, 
-                  headlines: e.target.value.split('\n').filter(h => h.trim()) 
-                } : null)}
+                onChange={(e) => {
+                  const lines = e.target.value.split('\n')
+                  setEditingTemplate(prev => prev ? { 
+                    ...prev, 
+                    headlines: lines
+                  } : null)
+                }}
+                onKeyDown={(e) => {
+                  // Allow Enter key to create new lines
+                  if (e.key === 'Enter') {
+                    e.stopPropagation()
+                  }
+                }}
               />
               <div className="text-xs text-gray-500 mt-1">
-                {editingTemplate.headlines.length} headlines
+                {editingTemplate.headlines.filter(h => h.trim()).length} headlines
               </div>
             </div>
 
@@ -360,13 +380,22 @@ export default function TemplateManager() {
                 rows={4}
                 placeholder="Enter descriptions, one per line..."
                 value={editingTemplate.descriptions.join('\n')}
-                onChange={(e) => setEditingTemplate(prev => prev ? { 
-                  ...prev, 
-                  descriptions: e.target.value.split('\n').filter(d => d.trim()) 
-                } : null)}
+                onChange={(e) => {
+                  const lines = e.target.value.split('\n')
+                  setEditingTemplate(prev => prev ? { 
+                    ...prev, 
+                    descriptions: lines
+                  } : null)
+                }}
+                onKeyDown={(e) => {
+                  // Allow Enter key to create new lines
+                  if (e.key === 'Enter') {
+                    e.stopPropagation()
+                  }
+                }}
               />
               <div className="text-xs text-gray-500 mt-1">
-                {editingTemplate.descriptions.length} descriptions
+                {editingTemplate.descriptions.filter(d => d.trim()).length} descriptions
               </div>
             </div>
 
@@ -377,13 +406,22 @@ export default function TemplateManager() {
                 rows={4}
                 placeholder="Enter keywords, one per line..."
                 value={editingTemplate.keywords.join('\n')}
-                onChange={(e) => setEditingTemplate(prev => prev ? { 
-                  ...prev, 
-                  keywords: e.target.value.split('\n').filter(k => k.trim()) 
-                } : null)}
+                onChange={(e) => {
+                  const lines = e.target.value.split('\n')
+                  setEditingTemplate(prev => prev ? { 
+                    ...prev, 
+                    keywords: lines
+                  } : null)
+                }}
+                onKeyDown={(e) => {
+                  // Allow Enter key to create new lines
+                  if (e.key === 'Enter') {
+                    e.stopPropagation()
+                  }
+                }}
               />
               <div className="text-xs text-gray-500 mt-1">
-                {editingTemplate.keywords.length} keywords
+                {editingTemplate.keywords.filter(k => k.trim()).length} keywords
               </div>
             </div>
 
