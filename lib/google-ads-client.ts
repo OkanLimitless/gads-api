@@ -1454,23 +1454,39 @@ export async function createDummyCampaign(
     const adGroupResponse = await customer.mutateResources(adGroupOperations)
     console.log('📋 Ad group creation response:', JSON.stringify(adGroupResponse, null, 2))
     
-    // Handle ad group response format
-    let adGroupResult
-    if (Array.isArray(adGroupResponse)) {
+    // Handle ad group response format - Updated for mutate_operation_responses
+    let adGroupResult, adGroupId, adGroupResourceNameFinal
+    
+    if (adGroupResponse?.mutate_operation_responses) {
+      console.log('📋 Ad group response has mutate_operation_responses')
+      adGroupResult = adGroupResponse.mutate_operation_responses.find((result: any) => result?.ad_group_result)
+      
+      if (adGroupResult?.ad_group_result) {
+        adGroupId = adGroupResult.ad_group_result.resource_name?.split('/')[3]
+        adGroupResourceNameFinal = adGroupResult.ad_group_result.resource_name
+      }
+    } else if (Array.isArray(adGroupResponse)) {
       adGroupResult = adGroupResponse[0]
+      if (adGroupResult?.ad_group) {
+        adGroupId = adGroupResult.ad_group.resource_name.split('/')[3]
+        adGroupResourceNameFinal = adGroupResult.ad_group.resource_name
+      }
     } else if (adGroupResponse?.results) {
       adGroupResult = adGroupResponse.results[0]
-    } else {
-      adGroupResult = adGroupResponse
+      if (adGroupResult?.ad_group) {
+        adGroupId = adGroupResult.ad_group.resource_name.split('/')[3]
+        adGroupResourceNameFinal = adGroupResult.ad_group.resource_name
+      }
+    } else if (adGroupResponse?.ad_group) {
+      adGroupId = adGroupResponse.ad_group.resource_name.split('/')[3]
+      adGroupResourceNameFinal = adGroupResponse.ad_group.resource_name
     }
     
-    if (!adGroupResult?.ad_group) {
-      console.error('❌ No ad group found in response:', adGroupResponse)
-      throw new Error('Ad group creation failed - no ad group in response')
+    if (!adGroupId) {
+      console.error('❌ No ad group ID found in response:', adGroupResponse)
+      console.error('❌ Checked adGroupResult:', adGroupResult)
+      throw new Error('Ad group creation failed - no ad group ID in response')
     }
-    
-    const adGroupId = adGroupResult.ad_group.resource_name.split('/')[3]
-    const adGroupResourceNameFinal = adGroupResult.ad_group.resource_name
     
     console.log('✅ Ad group created:', { adGroupId })
     
@@ -1496,10 +1512,19 @@ export async function createDummyCampaign(
         const keywordResponse = await customer.mutateResources(keywordOperations)
         console.log('📋 Keyword creation response:', JSON.stringify(keywordResponse, null, 2))
         
-        // Check if keywords were created successfully
-        const keywordResults = Array.isArray(keywordResponse) ? keywordResponse : 
-                              keywordResponse?.results ? keywordResponse.results : [keywordResponse]
-        const successfulKeywords = keywordResults.filter((result: any) => result?.ad_group_criterion)
+        // Check if keywords were created successfully - Updated for mutate_operation_responses
+        let keywordResults
+        if (keywordResponse?.mutate_operation_responses) {
+          keywordResults = keywordResponse.mutate_operation_responses.filter((result: any) => result?.ad_group_criterion_result)
+        } else if (Array.isArray(keywordResponse)) {
+          keywordResults = keywordResponse.filter((result: any) => result?.ad_group_criterion)
+        } else if (keywordResponse?.results) {
+          keywordResults = keywordResponse.results.filter((result: any) => result?.ad_group_criterion)
+        } else {
+          keywordResults = [keywordResponse].filter((result: any) => result?.ad_group_criterion)
+        }
+        
+        const successfulKeywords = keywordResults
         
         console.log(`✅ Created ${successfulKeywords.length}/${keywordOperations.length} keywords`)
       } catch (keywordError) {
@@ -1554,21 +1579,35 @@ export async function createDummyCampaign(
         const adResponse = await customer.mutateResources(adOperations)
         console.log('📋 Ad creation response:', JSON.stringify(adResponse, null, 2))
         
-        // Handle ad response format
-        let adResult
-        if (Array.isArray(adResponse)) {
+        // Handle ad response format - Updated for mutate_operation_responses
+        let adResult, adId
+        
+        if (adResponse?.mutate_operation_responses) {
+          console.log('📋 Ad response has mutate_operation_responses')
+          adResult = adResponse.mutate_operation_responses.find((result: any) => result?.ad_group_ad_result)
+          
+          if (adResult?.ad_group_ad_result) {
+            adId = adResult.ad_group_ad_result.resource_name?.split('/')[5]
+          }
+        } else if (Array.isArray(adResponse)) {
           adResult = adResponse[0]
+          if (adResult?.ad_group_ad) {
+            adId = adResult.ad_group_ad.resource_name?.split('/')[5]
+          }
         } else if (adResponse?.results) {
           adResult = adResponse.results[0]
-        } else {
-          adResult = adResponse
+          if (adResult?.ad_group_ad) {
+            adId = adResult.ad_group_ad.resource_name?.split('/')[5]
+          }
+        } else if (adResponse?.ad_group_ad) {
+          adId = adResponse.ad_group_ad.resource_name?.split('/')[5]
         }
         
-        if (!adResult?.ad_group_ad) {
-          console.error('❌ No ad found in response:', adResponse)
-          var adId = 'failed'
+        if (!adId) {
+          console.error('❌ No ad ID found in response:', adResponse)
+          console.error('❌ Checked adResult:', adResult)
+          adId = 'failed'
         } else {
-          const adId = adResult.ad_group_ad.resource_name?.split('/')[5]
           console.log('✅ Responsive search ad created:', { adId })
         }
       } catch (adError) {
