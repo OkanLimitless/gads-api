@@ -1120,7 +1120,6 @@ export async function getCampaignPerformance(
         'metrics.cost_per_conversion',
       ],
       segments: ['segments.date'],
-      date_constant: null,
       from_date: dateRange.startDate,
       to_date: dateRange.endDate,
     })
