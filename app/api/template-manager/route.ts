@@ -96,20 +96,32 @@ export async function POST(request: NextRequest) {
     
     // Check if template exists (update) or create new
     if (templateData._id) {
-      // Update existing template
-      const existingTemplate = await collection.findOne({ _id: new ObjectId(templateData._id) })
+      // Try to find existing template using the provided _id (could be ObjectId or string)
+      let existingTemplate
+      try {
+        // First try as ObjectId (24-char hex)
+        if (typeof templateData._id === 'string' && templateData._id.length === 24) {
+          existingTemplate = await collection.findOne({ _id: new ObjectId(templateData._id) })
+        } else {
+          // Use as string ID for longer hex strings or other formats
+          existingTemplate = await collection.findOne({ _id: templateData._id })
+        }
+      } catch (error) {
+        // If ObjectId conversion fails, try as string
+        existingTemplate = await collection.findOne({ _id: templateData._id })
+      }
       
       if (existingTemplate) {
         isUpdate = true
         const updatedTemplate = {
           ...templateData,
-          _id: new ObjectId(templateData._id),
+          _id: templateData._id, // Keep original _id format
           createdAt: existingTemplate.createdAt,
           updatedAt: now
         }
         
         result = await collection.replaceOne(
-          { _id: new ObjectId(templateData._id) },
+          { _id: templateData._id },
           updatedTemplate
         )
         
@@ -171,7 +183,21 @@ export async function DELETE(request: NextRequest) {
     }
 
     const collection = await getTemplatesCollection()
-    const result = await collection.deleteOne({ _id: new ObjectId(templateId) })
+    
+    // Try to delete using the provided templateId (could be ObjectId or string)
+    let result
+    try {
+      // First try as ObjectId (24-char hex)
+      if (typeof templateId === 'string' && templateId.length === 24) {
+        result = await collection.deleteOne({ _id: new ObjectId(templateId) })
+      } else {
+        // Use as string ID for longer hex strings or other formats
+        result = await collection.deleteOne({ _id: templateId })
+      }
+    } catch (error) {
+      // If ObjectId conversion fails, try as string
+      result = await collection.deleteOne({ _id: templateId })
+    }
     
     if (result.deletedCount === 0) {
       return NextResponse.json(
