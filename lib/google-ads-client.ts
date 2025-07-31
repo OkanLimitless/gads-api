@@ -1763,3 +1763,76 @@ export async function getCampaignCount(customerId: string, refreshToken: string)
     }
   }
 }
+
+export async function getClientAccounts(mccId: string, refreshToken: string): Promise<{
+  id: string
+  name: string
+  descriptive_name?: string
+  currency_code?: string
+  time_zone?: string
+  testAccount?: boolean
+}[]> {
+  try {
+    console.log(`🏢 Fetching client accounts for MCC: ${mccId}`)
+
+    // Hidden account IDs that should be excluded from selection
+    const hiddenAccountIds = [
+      '7543640452', '1981739507', '2455272543', 
+      '2943276700', '5353988239', '5299881560', '6575141691'
+    ]
+
+    // Create customer client for the MCC account
+    const mccCustomerClient = googleAdsClient.Customer({
+      customer_id: mccId,
+      refresh_token: refreshToken,
+    })
+
+    // Query customer clients managed by this MCC
+    const clientsQuery = `
+      SELECT 
+        customer_client.client_customer,
+        customer_client.descriptive_name,
+        customer_client.currency_code,
+        customer_client.time_zone,
+        customer_client.status,
+        customer_client.test_account,
+        customer_client.manager,
+        customer_client.level
+      FROM customer_client
+      WHERE customer_client.level = 1
+      AND customer_client.manager = false
+    `
+
+    console.log(`📊 Querying client accounts for MCC ${mccId}...`)
+    const clientsResponse = await mccCustomerClient.query(clientsQuery)
+
+    console.log(`✅ Found ${clientsResponse.length} client accounts`)
+
+    // Transform the response
+    const clientAccounts = clientsResponse.map((item: any) => {
+      const client = item.customer_client
+      const clientId = client.client_customer?.split('/')[1] || 'unknown'
+      
+      return {
+        id: clientId,
+        name: client.descriptive_name || `Client Account ${clientId}`,
+        descriptive_name: client.descriptive_name,
+        currency_code: client.currency_code || 'EUR',
+        time_zone: client.time_zone || 'Europe/Amsterdam',
+        testAccount: client.test_account || false,
+      }
+    })
+
+    // Filter out hidden accounts
+    const visibleClientAccounts = clientAccounts.filter(account => 
+      !hiddenAccountIds.includes(account.id)
+    )
+    
+    console.log(`🎯 Returning ${visibleClientAccounts.length} visible client accounts for MCC ${mccId}`)
+    return visibleClientAccounts
+
+  } catch (error) {
+    console.error('💥 Error fetching MCC client accounts:', error)
+    throw new Error(`Failed to fetch client accounts for MCC ${mccId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
