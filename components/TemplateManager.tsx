@@ -28,6 +28,7 @@ export default function TemplateManager() {
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
 
   // Default empty template
   const emptyTemplate: TemplateData = {
@@ -140,24 +141,71 @@ export default function TemplateManager() {
     link.click()
   }
 
-  const importTemplates = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importTemplates = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
+    setIsImporting(true)
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const importedTemplates = JSON.parse(e.target?.result as string)
         if (Array.isArray(importedTemplates)) {
-          setTemplates(prev => [...prev, ...importedTemplates])
-          setSuccess(`Imported ${importedTemplates.length} templates`)
+          setError(null)
+          let importedCount = 0
+          let errorCount = 0
+          
+          // Save each template to MongoDB
+          for (const template of importedTemplates) {
+            try {
+              // Ensure the template has a unique ID and timestamps
+              const templateToSave = {
+                ...template,
+                _id: template._id || Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                createdAt: template.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              }
+              
+              const response = await fetch('/api/template-manager', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(templateToSave)
+              })
+              
+              const result = await response.json()
+              if (result.success) {
+                importedCount++
+              } else {
+                console.error('Failed to save template:', template.name, result.error)
+                errorCount++
+              }
+            } catch (saveError) {
+              console.error('Error saving template:', template.name, saveError)
+              errorCount++
+            }
+          }
+          
+          if (importedCount > 0) {
+            setSuccess(`Successfully imported ${importedCount} templates${errorCount > 0 ? ` (${errorCount} failed)` : ''}`)
+            // Reload templates from database to show the imported ones
+            loadTemplates()
+          } else {
+            setError(`Failed to import templates: ${errorCount} errors occurred`)
+          }
+        } else {
+          setError('Invalid JSON format: expected an array of templates')
         }
-      } catch (err) {
-        setError('Invalid JSON file')
+              } catch (err) {
+          setError('Invalid JSON file')
+        } finally {
+          setIsImporting(false)
+        }
       }
+      reader.readAsText(file)
+      
+      // Clear the file input so the same file can be imported again if needed
+      event.target.value = ''
     }
-    reader.readAsText(file)
-  }
 
   return (
     <div className="space-y-6">
@@ -200,11 +248,21 @@ export default function TemplateManager() {
                 type="file"
                 accept=".json"
                 onChange={importTemplates}
+                disabled={isImporting}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              <Button variant="outline">
-                <Upload className="h-4 w-4 mr-2" />
-                Import Templates
+              <Button variant="outline" disabled={isImporting}>
+                {isImporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import Templates
+                  </>
+                )}
               </Button>
             </div>
             
