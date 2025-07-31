@@ -67,37 +67,45 @@ export default function Dashboard() {
     setError('')
     
     try {
-      console.log(`🏢 Fetching client accounts for MCC: ${mccId}`)
+      console.log(`🎯 Fetching accounts ready for real campaigns from MCC: ${mccId}`)
       
-      // Call the new MCC clients API to get actual managed client accounts
-      const response = await fetch(`/api/mcc-clients?mccId=${mccId}`)
+      // Load accounts ready for real campaigns (with performance update)
+      const response = await fetch('/api/accounts/ready-for-real?updatePerformance=true')
       const data = await response.json()
       
       if (response.ok && data.success) {
-        console.log(`✅ Got ${data.clientAccounts.length} client accounts for MCC ${mccId}:`, data.clientAccounts)
-        setClientAccounts(data.clientAccounts)
+        // Transform ready accounts to match the expected format
+        const transformedAccounts = data.readyAccounts.map((readyAccount: any) => ({
+          id: readyAccount.accountId,
+          name: readyAccount.accountName,
+          descriptive_name: readyAccount.descriptiveName,
+          currency_code: 'EUR',
+          time_zone: 'Europe/Amsterdam',
+          // Add performance data for display
+          dummyPerformance: {
+            totalSpentLast7Days: readyAccount.totalSpentLast7Days,
+            campaignCount: readyAccount.campaignCount,
+            dummyCampaigns: readyAccount.dummyCampaigns
+          }
+        }))
+        
+        console.log(`✅ Found ${transformedAccounts.length} accounts ready for real campaigns`)
+        console.log(`📊 Performance updated for ${data.performanceUpdated || 0} accounts`)
+        
+        setClientAccounts(transformedAccounts)
         setStep('client-selection')
       } else {
-        console.error('❌ Failed to fetch MCC client accounts:', data)
-        setError(data.error || 'Failed to load client accounts from MCC')
+        console.error('❌ Failed to fetch accounts ready for real campaigns:', data)
+        setError(data.error || 'No accounts are ready for real campaigns yet. Dummy campaigns need to spend over €10 in the last 7 days.')
         
-        // Fallback: show other accounts from the same Google account (current behavior)
-        console.log('🔄 Falling back to filtering from all accounts...')
-        const fallbackClients = allAccounts.filter(account => 
-          account.id !== mccId && account.canManageCampaigns
-        )
-        setClientAccounts(fallbackClients)
+        // No fallback - we specifically want only ready accounts
+        setClientAccounts([])
         setStep('client-selection')
       }
     } catch (error) {
-      console.error('💥 Error in handleMCCSelection:', error)
-      setError('Failed to load client accounts')
-      
-      // Fallback: show other accounts from the same Google account
-      const fallbackClients = allAccounts.filter(account => 
-        account.id !== mccId && account.canManageCampaigns
-      )
-      setClientAccounts(fallbackClients)
+      console.error('💥 Error loading accounts ready for real campaigns:', error)
+      setError('Failed to load accounts ready for real campaigns')
+      setClientAccounts([])
       setStep('client-selection')
     } finally {
       setLoading(false)
@@ -392,10 +400,10 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Users className="h-5 w-5 mr-2 text-green-600" />
-                  Select Client Account
+                  Accounts Ready for Real Campaigns
                 </CardTitle>
                 <CardDescription>
-                  Choose the client account where you want to create campaigns.
+                  These accounts have dummy campaigns that spent over €10 in the last 7 days and are ready for real campaign deployment.
                   {selectedMCCAccount && (
                     <span className="block mt-1 text-blue-600">
                       Under MCC: {selectedMCCAccount.name}
@@ -433,9 +441,16 @@ export default function Dashboard() {
                         <div className="text-sm text-gray-500">
                           ID: {account.id}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          Currency: {account.currency} • Timezone: {account.timeZone}
-                        </div>
+                        {account.dummyPerformance && (
+                          <div className="mt-2 p-2 bg-green-50 rounded text-sm">
+                            <div className="font-medium text-green-800">
+                              €{account.dummyPerformance.totalSpentLast7Days.toFixed(2)} spent (7 days)
+                            </div>
+                            <div className="text-green-600 text-xs">
+                              {account.dummyPerformance.campaignCount} dummy campaign{account.dummyPerformance.campaignCount !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

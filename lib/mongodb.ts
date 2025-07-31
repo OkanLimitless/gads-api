@@ -43,3 +43,9 @@ export async function getTemplatesCollection(): Promise<Collection> {
   const db = await getDatabase()
   return db.collection('campaign-templates')
 }
+
+// Helper function to get dummy campaign tracking collection
+export async function getDummyCampaignTrackingCollection(): Promise<Collection> {
+  const db = await getDatabase()
+  return db.collection('dummy-campaign-tracking')
+}

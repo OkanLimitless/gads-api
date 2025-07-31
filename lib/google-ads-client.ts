@@ -1432,6 +1432,21 @@ export async function createDummyCampaign(
       campaignResourceName
     })
     
+    // Track the dummy campaign in MongoDB for performance monitoring
+    try {
+      const { trackDummyCampaign } = await import('./dummy-campaign-tracker')
+      await trackDummyCampaign({
+        accountId: customerId,
+        campaignId,
+        campaignName: campaignNameWithDate,
+        budgetId,
+        templateName: templateData.name
+      })
+    } catch (trackingError) {
+      console.error('💥 Error tracking dummy campaign:', trackingError)
+      // Don't fail the entire process for tracking errors
+    }
+    
     // Step 2: Create Ad Group
     console.log('📁 Creating ad group for dummy campaign...')
     const adGroupResourceName = ResourceNames.adGroup(customerId, "-1")
