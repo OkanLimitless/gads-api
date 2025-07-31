@@ -1,5 +1,5 @@
 import { getDummyCampaignTrackingCollection } from './mongodb'
-import { getCampaigns } from './google-ads-client'
+import { getCampaignPerformance } from './google-ads-client'
 
 export interface DummyCampaignRecord {
   _id?: string
@@ -62,32 +62,52 @@ export async function updateDummyCampaignPerformance(
       return
     }
     
-    // Get campaign performance data from Google Ads
-    const campaigns = await getCampaigns(accountId, refreshToken)
+    // Calculate date range for last 30 days to get comprehensive performance data
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - 30)
+    
+    const dateRange = {
+      startDate: startDate.toISOString().split('T')[0], // YYYY-MM-DD format
+      endDate: endDate.toISOString().split('T')[0]
+    }
+    
+    console.log(`📊 Fetching performance data for account ${accountId} from ${dateRange.startDate} to ${dateRange.endDate}`)
+    
+    // Get campaign performance data from Google Ads (with actual metrics!)
+    const performanceData = await getCampaignPerformance(accountId, refreshToken, dateRange)
     
     for (const dummyCampaign of dummyCampaigns) {
-      const gAdsCampaign = campaigns.find(c => c.id === dummyCampaign.campaignId)
+      // Get all performance records for this campaign
+      const campaignPerformance = performanceData.filter(p => p.campaignId === dummyCampaign.campaignId)
       
-      if (gAdsCampaign && gAdsCampaign.metrics) {
-        const spentMicros = parseInt(gAdsCampaign.metrics.cost_micros || '0')
-        const today = new Date().toISOString().split('T')[0]
-        
-        // Update performance history
+      if (campaignPerformance.length > 0) {
+        // Update performance history with daily data
         const performanceHistory = dummyCampaign.performanceHistory || []
-        const todayRecord = performanceHistory.find(p => p.date === today)
         
-        if (todayRecord) {
-          todayRecord.spent = spentMicros
-          todayRecord.impressions = parseInt(gAdsCampaign.metrics.impressions || '0')
-          todayRecord.clicks = parseInt(gAdsCampaign.metrics.clicks || '0')
-        } else {
-          performanceHistory.push({
-            date: today,
-            spent: spentMicros,
-            impressions: parseInt(gAdsCampaign.metrics.impressions || '0'),
-            clicks: parseInt(gAdsCampaign.metrics.clicks || '0')
-          })
+        // Process each day's performance data
+        for (const dayPerformance of campaignPerformance) {
+          const existingRecord = performanceHistory.find(p => p.date === dayPerformance.date)
+          const costMicros = Math.round(dayPerformance.cost * 1000000) // Convert dollars back to micros
+          
+          if (existingRecord) {
+            // Update existing record
+            existingRecord.spent = costMicros
+            existingRecord.impressions = dayPerformance.impressions
+            existingRecord.clicks = dayPerformance.clicks
+          } else {
+            // Add new record
+            performanceHistory.push({
+              date: dayPerformance.date,
+              spent: costMicros,
+              impressions: dayPerformance.impressions,
+              clicks: dayPerformance.clicks
+            })
+          }
         }
+        
+        // Sort performance history by date (newest first)
+        performanceHistory.sort((a, b) => b.date.localeCompare(a.date))
         
         // Calculate total spent in last 7 days
         const sevenDaysAgo = new Date()
@@ -98,7 +118,10 @@ export async function updateDummyCampaignPerformance(
           .filter(p => p.date >= sevenDaysAgoStr)
           .reduce((total, p) => total + p.spent, 0)
         
-        // Check if ready for real campaign (spent over 10 euros = 10,000,000 micros)
+        // Calculate total spent overall
+        const totalSpent = performanceHistory.reduce((total, p) => total + p.spent, 0)
+        
+        // Check if ready for real campaign (spent over 10 euros = 10,000,000 micros in last 7 days)
         const isReadyForReal = last7DaysSpent > 10000000
         
         // Update the record
@@ -107,14 +130,16 @@ export async function updateDummyCampaignPerformance(
           {
             $set: {
               lastChecked: new Date().toISOString(),
-              totalSpent: spentMicros,
+              totalSpent: totalSpent,
               isReadyForReal,
               performanceHistory
             }
           }
         )
         
-        console.log(`📊 Updated performance for campaign ${dummyCampaign.campaignId}: €${(last7DaysSpent / 1000000).toFixed(2)} spent in last 7 days`)
+        console.log(`📊 Updated performance for campaign ${dummyCampaign.campaignId}: €${(last7DaysSpent / 1000000).toFixed(2)} spent in last 7 days, €${(totalSpent / 1000000).toFixed(2)} total (Ready: ${isReadyForReal})`)
+      } else {
+        console.log(`📊 No performance data found for campaign ${dummyCampaign.campaignId}`)
       }
     }
   } catch (error) {
