@@ -1,5 +1,5 @@
 import { getDummyCampaignTrackingCollection } from './mongodb'
-import { getCampaignPerformance } from './google-ads-client'
+import { getCampaignPerformance, getCampaigns } from './google-ads-client'
 
 export interface DummyCampaignRecord {
   _id?: string
@@ -147,8 +147,8 @@ export async function updateDummyCampaignPerformance(
   }
 }
 
-// Get accounts that are ready for real campaigns
-export async function getAccountsReadyForRealCampaigns(): Promise<{
+// Get accounts that are ready for real campaigns (have high-spending dummy campaigns but NO real campaigns)
+export async function getAccountsReadyForRealCampaigns(refreshToken?: string): Promise<{
   accountId: string
   campaignCount: number
   totalSpentLast7Days: number // in euros
@@ -158,6 +158,7 @@ export async function getAccountsReadyForRealCampaigns(): Promise<{
     spentLast7Days: number
     templateName: string
   }[]
+  hasRealCampaigns?: boolean
 }[]> {
   try {
     const collection = await getDummyCampaignTrackingCollection()
@@ -174,7 +175,8 @@ export async function getAccountsReadyForRealCampaigns(): Promise<{
           accountId: campaign.accountId,
           campaignCount: 0,
           totalSpentLast7Days: 0,
-          dummyCampaigns: []
+          dummyCampaigns: [],
+          hasRealCampaigns: false
         })
       }
       
@@ -199,7 +201,50 @@ export async function getAccountsReadyForRealCampaigns(): Promise<{
       })
     }
     
-    return Array.from(accountMap.values())
+    const accountsWithReadyDummies = Array.from(accountMap.values())
+    
+    // If refreshToken is provided, check for real campaigns and filter out accounts that have them
+    if (refreshToken && accountsWithReadyDummies.length > 0) {
+      console.log(`🔍 Checking ${accountsWithReadyDummies.length} accounts for existing real campaigns...`)
+      
+      const accountsWithoutRealCampaigns = []
+      
+      for (const account of accountsWithReadyDummies) {
+        try {
+          // Get all campaigns for this account
+          const allCampaigns = await getCampaigns(account.accountId, refreshToken)
+          
+          // Get dummy campaign IDs for this account
+          const dummyCampaignIds = account.dummyCampaigns.map(dc => dc.campaignId)
+          
+          // Check if there are any campaigns that are NOT dummy campaigns
+          const realCampaigns = allCampaigns.filter(campaign => 
+            !dummyCampaignIds.includes(campaign.id)
+          )
+          
+          account.hasRealCampaigns = realCampaigns.length > 0
+          
+          if (realCampaigns.length === 0) {
+            // No real campaigns found - this account is still eligible
+            accountsWithoutRealCampaigns.push(account)
+            console.log(`✅ Account ${account.accountId}: Only dummy campaigns found (${dummyCampaignIds.length} dummy, 0 real)`)
+          } else {
+            // Real campaigns found - exclude this account
+            console.log(`❌ Account ${account.accountId}: Has real campaigns (${dummyCampaignIds.length} dummy, ${realCampaigns.length} real) - excluded`)
+          }
+        } catch (error) {
+          console.error(`💥 Error checking campaigns for account ${account.accountId}:`, error)
+          // On error, include the account (better to show than hide)
+          accountsWithoutRealCampaigns.push(account)
+        }
+      }
+      
+      console.log(`🎯 Filtered accounts: ${accountsWithoutRealCampaigns.length}/${accountsWithReadyDummies.length} accounts have only dummy campaigns`)
+      return accountsWithoutRealCampaigns
+    }
+    
+    // If no refreshToken provided, return all accounts with ready dummies (legacy behavior)
+    return accountsWithReadyDummies
   } catch (error) {
     console.error('💥 Error getting accounts ready for real campaigns:', error)
     return []

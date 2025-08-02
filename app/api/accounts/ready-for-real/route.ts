@@ -42,8 +42,8 @@ export async function GET(request: NextRequest) {
       console.log(`✅ Updated performance for ${performanceUpdated}/${clientAccounts.length} accounts`)
     }
 
-    // Get accounts that are ready for real campaigns
-    readyAccounts = await getAccountsReadyForRealCampaigns()
+    // Get accounts that are ready for real campaigns (with real campaign filtering)
+    readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken)
     
     // Enrich with account names from Google Ads
     const enrichedAccounts = readyAccounts.map(readyAccount => {
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       criteria: {
         minimumSpend: '€10.00',
         timeframe: '7 days',
-        description: 'Accounts with dummy campaigns that have spent over €10 in the last 7 days'
+        description: 'Accounts with dummy campaigns that have spent over €10 in the last 7 days AND have no real campaigns deployed yet'
       }
     })
 
