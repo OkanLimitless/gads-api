@@ -614,7 +614,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                     <SelectItem value="none">No Schedule (Show ads all day)</SelectItem>
                     <SelectItem value="est_business_hours">EST Business Hours (9 AM - 9 PM EST)</SelectItem>
                     <SelectItem value="amsterdam_evening_rush">Amsterdam Evening Rush (11 PM - 3 AM AMS)</SelectItem>
-                    <SelectItem value="energie">Energie (10 AM - 8:30 PM)</SelectItem>
+                    <SelectItem value="energie">Energie (10 AM - 8:30 PM, Mon-Fri)</SelectItem>
                     {adScheduleTemplates.map((template) => (
                       <SelectItem key={template.id} value={template.id}>
                         {template.name} (Custom)
@@ -643,8 +643,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                     {campaignData.adScheduleTemplateId === 'energie' && (
                       <div>
                         <p className="font-medium text-blue-900">Energie Schedule</p>
-                        <p className="text-blue-700">All days: 10:00-20:30 (Local Time)</p>
-                        <p className="text-blue-600 text-xs">10 AM to 8:30 PM daily schedule</p>
+                        <p className="text-blue-700">Monday-Friday: 10:00-20:30 (Local Time)</p>
+                        <p className="text-blue-600 text-xs">10 AM to 8:30 PM weekdays only</p>
                       </div>
                     )}
                     {campaignData.adScheduleTemplateId !== 'est_business_hours' && 
@@ -956,7 +956,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                         : campaignData.adScheduleTemplateId === 'amsterdam_evening_rush'
                         ? 'Amsterdam Evening Rush (11 PM - 3 AM AMS)'
                         : campaignData.adScheduleTemplateId === 'energie'
-                        ? 'Energie (10 AM - 8:30 PM)'
+                        ? 'Energie (10 AM - 8:30 PM, Mon-Fri)'
                         : campaignData.adScheduleTemplateId 
                         ? adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId)?.name || 'Custom Schedule'
                         : 'Show ads all day'

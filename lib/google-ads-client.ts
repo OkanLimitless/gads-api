@@ -979,11 +979,11 @@ export async function createCampaign(
         ])
       }
       else if (campaignData.adScheduleTemplateId === 'energie') {
-        console.log('⚡ Using Energie schedule (10 AM - 8:30 PM)')
-        // Energie Schedule: 10:00-20:30 Local Time (assuming Netherlands/Europe timezone)
+        console.log('⚡ Using Energie schedule (10 AM - 8:30 PM, Monday-Friday)')
+        // Energie Schedule: 10:00-20:30 Local Time (Netherlands/Europe timezone), Monday-Friday only
         // For Netherlands (UTC+1/UTC+2), this translates to 9:00-19:30 UTC (winter) or 8:00-18:30 UTC (summer)
         // Using UTC+1 (winter time) as base: 9:00-19:30 UTC
-        const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+        const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'] // Weekdays only
         
         adScheduleOperations = daysOfWeek.map(day => ({
           entity: "campaign_criterion",
