@@ -31,7 +31,6 @@ export interface Campaign {
   startDate: string
   endDate?: string
   campaignType: string
-  targetingSettings?: any
 }
 
 export interface CampaignPerformance {
@@ -1072,8 +1071,7 @@ export async function getCampaigns(customerId: string, refreshToken: string): Pr
         campaign.bidding_strategy_type,
         campaign.start_date,
         campaign.end_date,
-        campaign.advertising_channel_type,
-        campaign.targeting_setting
+        campaign.advertising_channel_type
       FROM campaign
       ORDER BY campaign.id
     `
@@ -1095,7 +1093,6 @@ export async function getCampaigns(customerId: string, refreshToken: string): Pr
         startDate: campaign.start_date || '',
         endDate: campaign.end_date,
         campaignType: campaign.advertising_channel_type || 'SEARCH',
-        targetingSettings: campaign.targeting_setting,
       }
     })
   } catch (error) {
