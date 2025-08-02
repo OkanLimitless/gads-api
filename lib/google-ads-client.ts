@@ -978,6 +978,28 @@ export async function createCampaign(
           }
         ])
       }
+      else if (campaignData.adScheduleTemplateId === 'energie') {
+        console.log('⚡ Using Energie schedule (10 AM - 8:30 PM)')
+        // Energie Schedule: 10:00-20:30 Local Time (assuming Netherlands/Europe timezone)
+        // For Netherlands (UTC+1/UTC+2), this translates to 9:00-19:30 UTC (winter) or 8:00-18:30 UTC (summer)
+        // Using UTC+1 (winter time) as base: 9:00-19:30 UTC
+        const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+        
+        adScheduleOperations = daysOfWeek.map(day => ({
+          entity: "campaign_criterion",
+          operation: "create",
+          resource: {
+            campaign: campaignResourceName,
+            ad_schedule: {
+              day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+              start_hour: 9, // 10 AM local time (UTC+1)
+              start_minute: enums.MinuteOfHour.ZERO,
+              end_hour: 19, // 8:30 PM local time
+              end_minute: enums.MinuteOfHour.THIRTY
+            }
+          }
+        }))
+      }
       // Handle custom templates
       else if (campaignData.adScheduleTemplate && campaignData.adScheduleTemplate.schedule.length > 0) {
         console.log('📋 Using custom ad schedule template')

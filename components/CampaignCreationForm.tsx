@@ -143,6 +143,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
       'AU': 'Australia',
       'DE': 'Germany',
       'FR': 'France',
+      'NL': 'Netherlands',
       
       // Special targeting
       'TERMINIX': 'Terminix Targeting (CA, NV, AZ, TX, FL, NY, IL, WA, CO, GA, OR, MA, NJ, MD, VA)'
@@ -553,6 +554,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   <SelectItem value="AU">Australia</SelectItem>
                   <SelectItem value="DE">Germany</SelectItem>
                   <SelectItem value="FR">France</SelectItem>
+                  <SelectItem value="NL">Netherlands</SelectItem>
                 </SelectContent>
               </Select>
               {errors.locations && <p className="text-sm text-red-500 mt-1">{errors.locations}</p>}
@@ -570,6 +572,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   <SelectItem value="fr">French</SelectItem>
                   <SelectItem value="de">German</SelectItem>
                   <SelectItem value="it">Italian</SelectItem>
+                  <SelectItem value="nl">Dutch</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -596,7 +599,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                 <Select 
                   value={campaignData.adScheduleTemplateId || 'none'} 
                   onValueChange={(value) => {
-                    if (value === 'est_business_hours' || value === 'amsterdam_evening_rush') {
+                    if (value === 'est_business_hours' || value === 'amsterdam_evening_rush' || value === 'energie') {
                       // Handle built-in schedules
                       updateCampaignData('adScheduleTemplateId', value)
                     } else {
@@ -611,6 +614,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                     <SelectItem value="none">No Schedule (Show ads all day)</SelectItem>
                     <SelectItem value="est_business_hours">EST Business Hours (9 AM - 9 PM EST)</SelectItem>
                     <SelectItem value="amsterdam_evening_rush">Amsterdam Evening Rush (11 PM - 3 AM AMS)</SelectItem>
+                    <SelectItem value="energie">Energie (10 AM - 8:30 PM)</SelectItem>
                     {adScheduleTemplates.map((template) => (
                       <SelectItem key={template.id} value={template.id}>
                         {template.name} (Custom)
@@ -636,8 +640,16 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                         <p className="text-blue-600 text-xs">Evening rush hours in Amsterdam timezone</p>
                       </div>
                     )}
+                    {campaignData.adScheduleTemplateId === 'energie' && (
+                      <div>
+                        <p className="font-medium text-blue-900">Energie Schedule</p>
+                        <p className="text-blue-700">All days: 10:00-20:30 (Local Time)</p>
+                        <p className="text-blue-600 text-xs">10 AM to 8:30 PM daily schedule</p>
+                      </div>
+                    )}
                     {campaignData.adScheduleTemplateId !== 'est_business_hours' && 
-                     campaignData.adScheduleTemplateId !== 'amsterdam_evening_rush' && (
+                     campaignData.adScheduleTemplateId !== 'amsterdam_evening_rush' && 
+                     campaignData.adScheduleTemplateId !== 'energie' && (
                       <div>
                         {(() => {
                           const template = adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId)
@@ -926,7 +938,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                         campaignData.languageCode === 'es' ? 'Spanish' :
                         campaignData.languageCode === 'fr' ? 'French' :
                         campaignData.languageCode === 'de' ? 'German' :
-                        campaignData.languageCode === 'it' ? 'Italian' : campaignData.languageCode}</p>
+                        campaignData.languageCode === 'it' ? 'Italian' :
+                        campaignData.languageCode === 'nl' ? 'Dutch' : campaignData.languageCode}</p>
                   </div>
                 </div>
 
@@ -942,6 +955,8 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                         ? 'EST Business Hours (9 AM - 9 PM EST)'
                         : campaignData.adScheduleTemplateId === 'amsterdam_evening_rush'
                         ? 'Amsterdam Evening Rush (11 PM - 3 AM AMS)'
+                        : campaignData.adScheduleTemplateId === 'energie'
+                        ? 'Energie (10 AM - 8:30 PM)'
                         : campaignData.adScheduleTemplateId 
                         ? adScheduleTemplates.find(t => t.id === campaignData.adScheduleTemplateId)?.name || 'Custom Schedule'
                         : 'Show ads all day'
