@@ -88,29 +88,51 @@ export async function POST(request: NextRequest) {
         try {
           const campaigns = await getCampaigns(accountId, session.refreshToken)
           
-          // Identify dummy campaigns by name patterns
-          const dummyCampaigns = campaigns.filter(campaign => {
-            const name = campaign.name.toLowerCase()
-            // Common dummy campaign name patterns
-            return name.includes('dummy') || 
-                   name.includes('test') ||
-                   name.includes('template') ||
-                   name.match(/\d{4}-\d{2}-\d{2}$/) || // Ends with date (YYYY-MM-DD)
-                   name.includes('sweaters and hoodies') ||
-                   name.includes('clothing sale') ||
-                   name.includes('push up bra') ||
-                   name.includes('energie') // Template names from our system
-          })
-          
-          dummyCampaignCount = dummyCampaigns.length
-          realCampaignCount = campaigns.length - dummyCampaignCount
-          hasRealCampaigns = realCampaignCount > 0
+          // Smart dummy campaign detection based on budget and campaign count
+          if (campaigns.length === 1) {
+            // If there's only 1 campaign with ≤€10 daily budget, it's likely a dummy
+            const singleCampaign = campaigns[0]
+            const dailyBudget = singleCampaign.budget || 0
+            
+            if (dailyBudget <= 10) {
+              // Single campaign with low budget = dummy campaign
+              dummyCampaignCount = 1
+              realCampaignCount = 0
+              hasRealCampaigns = false
+              console.log(`🎭 Single dummy campaign detected: "${singleCampaign.name}" (€${dailyBudget}/day budget)`)
+            } else {
+              // Single campaign with high budget = real campaign
+              dummyCampaignCount = 0
+              realCampaignCount = 1
+              hasRealCampaigns = true
+              console.log(`💼 Single real campaign detected: "${singleCampaign.name}" (€${dailyBudget}/day budget)`)
+            }
+          } else if (campaigns.length > 1) {
+            // Multiple campaigns = at least one is likely real
+            // Count campaigns with ≤€10 budget as dummy, others as real
+            const dummyCampaigns = campaigns.filter(c => (c.budget || 0) <= 10)
+            const realCampaigns = campaigns.filter(c => (c.budget || 0) > 10)
+            
+            dummyCampaignCount = dummyCampaigns.length
+            realCampaignCount = realCampaigns.length
+            hasRealCampaigns = realCampaignCount > 0
+            
+            console.log(`📊 Multiple campaigns: ${dummyCampaigns.length} dummy (≤€10), ${realCampaigns.length} real (>€10)`)
+            if (dummyCampaigns.length > 0) {
+              console.log(`🎭 Dummy campaigns:`, dummyCampaigns.map(c => `${c.name} (€${c.budget}/day)`))
+            }
+            if (realCampaigns.length > 0) {
+              console.log(`💼 Real campaigns:`, realCampaigns.map(c => `${c.name} (€${c.budget}/day)`))
+            }
+          } else {
+            // No campaigns
+            dummyCampaignCount = 0
+            realCampaignCount = 0
+            hasRealCampaigns = false
+            console.log(`📊 Account ${accountId}: No campaigns found`)
+          }
           
           console.log(`📊 Account ${accountId}: Found ${campaigns.length} total campaigns (${dummyCampaignCount} dummy, ${realCampaignCount} real)`)
-          
-          if (dummyCampaigns.length > 0) {
-            console.log(`🎭 Dummy campaigns detected:`, dummyCampaigns.map(c => c.name))
-          }
         } catch (campaignError) {
           console.error(`💥 Error checking campaigns for account ${accountId}:`, campaignError)
           // If we can't check campaigns, assume account is ready (better to show than hide)

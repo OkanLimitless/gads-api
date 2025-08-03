@@ -1071,7 +1071,8 @@ export async function getCampaigns(customerId: string, refreshToken: string): Pr
         campaign.bidding_strategy_type,
         campaign.start_date,
         campaign.end_date,
-        campaign.advertising_channel_type
+        campaign.advertising_channel_type,
+        campaign_budget.amount_micros
       FROM campaign
       ORDER BY campaign.id
     `
@@ -1083,11 +1084,12 @@ export async function getCampaigns(customerId: string, refreshToken: string): Pr
 
     return campaigns.map((row: any) => {
       const campaign = row.campaign
+      const campaignBudget = row.campaign_budget
       return {
         id: campaign.id?.toString() || '',
         name: campaign.name || '',
         status: campaign.status || 'UNKNOWN',
-        budget: 0, // We'll fetch this separately
+        budget: campaignBudget?.amount_micros ? parseInt(campaignBudget.amount_micros) / 1000000 : 0, // Convert micros to euros
         budgetId: campaign.campaign_budget || '',
         biddingStrategy: campaign.bidding_strategy_type || 'UNKNOWN',
         startDate: campaign.start_date || '',
