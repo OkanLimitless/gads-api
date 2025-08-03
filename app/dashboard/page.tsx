@@ -9,6 +9,7 @@ import Link from 'next/link'
 import CampaignCreationForm from '@/components/CampaignCreationForm'
 import DummyCampaignManager from '@/components/DummyCampaignManager'
 import TemplateManager from '@/components/TemplateManager'
+import ManualAccountLoader from '@/components/ManualAccountLoader'
 
 interface AdAccount {
   id: string
@@ -32,7 +33,7 @@ export default function Dashboard() {
   const [selectedClientAccount, setSelectedClientAccount] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
-  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager'>('mcc-selection')
+  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager' | 'manual-accounts'>('mcc-selection')
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -136,6 +137,8 @@ export default function Dashboard() {
       setStep('mcc-selection')
     } else if (step === 'template-manager') {
       setStep('mcc-selection')
+    } else if (step === 'manual-accounts') {
+      setStep('mcc-selection')
     }
   }
 
@@ -233,6 +236,12 @@ export default function Dashboard() {
               <>
                 <ChevronRight className="h-4 w-4" />
                 <span className="font-medium text-blue-600">Template Manager</span>
+              </>
+            )}
+            {step === 'manual-accounts' && (
+              <>
+                <ChevronRight className="h-4 w-4" />
+                <span className="font-medium text-blue-600">Manual Account Loader</span>
               </>
             )}
           </div>
@@ -375,6 +384,32 @@ export default function Dashboard() {
                             >
                               <FileText className="h-4 w-4 mr-2" />
                               Manage Templates
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Manual Account Loader */}
+                    <div className="col-span-1">
+                      <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-medium text-orange-900 mb-1">
+                                Manual Account Loader
+                              </h3>
+                              <p className="text-sm text-orange-700">
+                                Load specific account IDs to deploy campaigns manually (for pre-tracking dummy accounts)
+                              </p>
+                            </div>
+                            <Button
+                              onClick={() => setStep('manual-accounts')}
+                              variant="outline"
+                              className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                            >
+                              <Target className="h-4 w-4 mr-2" />
+                              Load Accounts
                             </Button>
                           </div>
                         </CardContent>
@@ -529,6 +564,11 @@ export default function Dashboard() {
           {/* Template Manager Step */}
           {status === 'authenticated' && step === 'template-manager' && (
             <TemplateManager />
+          )}
+
+          {/* Manual Account Loader Step */}
+          {status === 'authenticated' && step === 'manual-accounts' && (
+            <ManualAccountLoader onBack={() => setStep('mcc-selection')} />
           )}
         </div>
       </div>
