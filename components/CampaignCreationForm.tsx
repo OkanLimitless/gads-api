@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Target, DollarSign, Calendar, Settings, Globe, Edit, Plus, Trash2, Clock } from 'lucide-react'
 import TemplateManager from './TemplateManager'
 import AdScheduleManager from './AdScheduleManager'
+import RealCampaignTemplateManager from './RealCampaignTemplateManager'
 
 interface CampaignCreationFormProps {
   selectedAccount: {
@@ -93,6 +94,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
   const [showTemplateManager, setShowTemplateManager] = useState(false)
+  const [showRealTemplateSelector, setShowRealTemplateSelector] = useState(false)
   const [adScheduleTemplates, setAdScheduleTemplates] = useState<AdScheduleTemplate[]>([])
   const [showAdScheduleManager, setShowAdScheduleManager] = useState(false)
   
@@ -158,6 +160,26 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
       name: prev.name // Keep the campaign name separate
     }))
     setSelectedTemplate(template)
+    setShowTemplateChoice(false)
+  }
+
+  // Load real campaign template data into form
+  const loadRealTemplate = (template: any) => {
+    setCampaignData(prev => ({
+      name: prev.name, // Keep the campaign name separate
+      budget: template.data.budget,
+      finalUrl: template.data.finalUrl,
+      path1: template.data.path1 || '',
+      path2: template.data.path2 || '',
+      headlines: template.data.headlines,
+      descriptions: template.data.descriptions,
+      keywords: template.data.keywords,
+      locations: template.data.locations,
+      languageCode: template.data.languageCode,
+      adScheduleTemplateId: template.data.adScheduleTemplateId,
+      deviceTargeting: template.data.deviceTargeting
+    }))
+    setShowRealTemplateSelector(false)
     setShowTemplateChoice(false)
   }
 
@@ -383,6 +405,17 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     )
   }
 
+  // Real campaign template selector screen
+  if (showRealTemplateSelector) {
+    return (
+      <RealCampaignTemplateManager
+        mode="selector"
+        onSelectTemplate={loadRealTemplate}
+        onBack={() => setShowRealTemplateSelector(false)}
+      />
+    )
+  }
+
   // Ad schedule manager screen
   if (showAdScheduleManager) {
     return (
@@ -418,48 +451,27 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                     Use Template
                   </CardTitle>
                   <CardDescription>
-                    Start with a pre-configured template to save time
+                    Start with a pre-configured template organized by country (NL/US)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {templates.length > 0 ? (
-                    <>
-                      <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {templates.slice(0, 3).map((template) => (
-                          <div
-                            key={template.id}
-                            className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                            onClick={() => loadTemplate(template)}
-                          >
-                            <div className="font-medium">{template.name}</div>
-                            <div className="text-sm text-gray-600">{template.description}</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Budget: ${template.data.budget}/day • {template.data.keywords.filter(k => k.trim()).length} keywords
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {templates.length > 3 && (
-                        <p className="text-xs text-gray-500 text-center">
-                          And {templates.length - 3} more templates...
-                        </p>
-                      )}
+                  <div className="text-center py-6">
+                    <Settings className="h-12 w-12 mx-auto mb-4 text-purple-300" />
+                    <p className="text-gray-600 mb-4">Browse templates by category</p>
+                    <div className="space-y-2">
                       <Button 
                         variant="outline" 
-                        className="w-full mt-3"
-                        onClick={() => setShowTemplateManager(true)}
+                        className="w-full"
+                        onClick={() => setShowRealTemplateSelector(true)}
                       >
-                        <Settings className="h-4 w-4 mr-2" />
-                        Manage All Templates
+                        <Target className="h-4 w-4 mr-2" />
+                        Browse Templates (NL/US)
                       </Button>
-                    </>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <Settings className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                      <p>No templates saved yet</p>
-                      <p className="text-sm">Create a campaign first to save as template</p>
+                      <p className="text-xs text-gray-500">
+                        Separate from dummy campaign templates
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
 
