@@ -80,16 +80,37 @@ export async function POST(request: NextRequest) {
 
         console.log(`✅ Account ${accountId}: Found in MCC as "${accountInfo.name}"`)
 
-        // Check for existing campaigns
+        // Check for existing campaigns and distinguish dummy vs real campaigns
         let hasRealCampaigns = false
+        let dummyCampaignCount = 0
+        let realCampaignCount = 0
+        
         try {
           const campaigns = await getCampaigns(accountId, session.refreshToken)
           
-          // For manual accounts, we assume ALL campaigns are "real" campaigns
-          // since these are accounts that had dummy campaigns before the tracking system
-          hasRealCampaigns = campaigns.length > 0
+          // Identify dummy campaigns by name patterns
+          const dummyCampaigns = campaigns.filter(campaign => {
+            const name = campaign.name.toLowerCase()
+            // Common dummy campaign name patterns
+            return name.includes('dummy') || 
+                   name.includes('test') ||
+                   name.includes('template') ||
+                   name.match(/\d{4}-\d{2}-\d{2}$/) || // Ends with date (YYYY-MM-DD)
+                   name.includes('sweaters and hoodies') ||
+                   name.includes('clothing sale') ||
+                   name.includes('push up bra') ||
+                   name.includes('energie') // Template names from our system
+          })
           
-          console.log(`📊 Account ${accountId}: Found ${campaigns.length} existing campaigns`)
+          dummyCampaignCount = dummyCampaigns.length
+          realCampaignCount = campaigns.length - dummyCampaignCount
+          hasRealCampaigns = realCampaignCount > 0
+          
+          console.log(`📊 Account ${accountId}: Found ${campaigns.length} total campaigns (${dummyCampaignCount} dummy, ${realCampaignCount} real)`)
+          
+          if (dummyCampaigns.length > 0) {
+            console.log(`🎭 Dummy campaigns detected:`, dummyCampaigns.map(c => c.name))
+          }
         } catch (campaignError) {
           console.error(`💥 Error checking campaigns for account ${accountId}:`, campaignError)
           // If we can't check campaigns, assume account is ready (better to show than hide)
@@ -97,20 +118,22 @@ export async function POST(request: NextRequest) {
         }
 
         if (hasRealCampaigns) {
-          console.log(`❌ Account ${accountId}: Has existing campaigns - marked as deployed`)
+          console.log(`❌ Account ${accountId}: Has ${realCampaignCount} real campaigns - marked as deployed`)
           results.push({
             id: accountId,
             name: accountInfo.name || `Account ${accountId}`,
             status: 'campaign-deployed',
-            hasRealCampaigns: true
+            hasRealCampaigns: true,
+            error: `Has ${realCampaignCount} real campaign${realCampaignCount !== 1 ? 's' : ''} (${dummyCampaignCount} dummy ignored)`
           })
         } else {
-          console.log(`✅ Account ${accountId}: Ready for campaign deployment`)
+          console.log(`✅ Account ${accountId}: Only ${dummyCampaignCount} dummy campaigns found - ready for deployment`)
           results.push({
             id: accountId,
             name: accountInfo.name || `Account ${accountId}`,
             status: 'ready',
-            hasRealCampaigns: false
+            hasRealCampaigns: false,
+            error: dummyCampaignCount > 0 ? `${dummyCampaignCount} dummy campaign${dummyCampaignCount !== 1 ? 's' : ''} detected (ignored)` : undefined
           })
         }
 
