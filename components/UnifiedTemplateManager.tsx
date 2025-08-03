@@ -5,8 +5,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, AlertCircle, CheckCircle, Settings, Target, FileText, Flag, Globe, ArrowLeft } from 'lucide-react'
-import RealCampaignTemplateManager from './RealCampaignTemplateManager'
-import TemplateManager from './TemplateManager'
+import dynamic from 'next/dynamic'
+
+// Dynamic imports to avoid initialization issues
+const RealCampaignTemplateManager = dynamic(() => import('./RealCampaignTemplateManager'), {
+  loading: () => <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>,
+  ssr: false
+})
+
+const TemplateManager = dynamic(() => import('./TemplateManager'), {
+  loading: () => <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>,
+  ssr: false
+})
 
 interface UnifiedTemplateManagerProps {
   onBack?: () => void
@@ -28,7 +38,7 @@ export default function UnifiedTemplateManager({ onBack }: UnifiedTemplateManage
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('real')
+  const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
     loadAllTemplateStats()
@@ -131,6 +141,15 @@ export default function UnifiedTemplateManager({ onBack }: UnifiedTemplateManage
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin mr-2" />
+        <span>Loading template manager...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -216,6 +235,10 @@ export default function UnifiedTemplateManager({ onBack }: UnifiedTemplateManage
       {/* Template Management Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">
+            <Globe className="h-4 w-4 mr-2" />
+            Overview
+          </TabsTrigger>
           <TabsTrigger value="real">
             <Target className="h-4 w-4 mr-2" />
             Real Templates ({realTemplateStats.total})
@@ -228,20 +251,84 @@ export default function UnifiedTemplateManager({ onBack }: UnifiedTemplateManage
             <Settings className="h-4 w-4 mr-2" />
             Legacy Templates ({legacyTemplates.length})
           </TabsTrigger>
-          <TabsTrigger value="overview">
-            <Globe className="h-4 w-4 mr-2" />
-            Overview
-          </TabsTrigger>
         </TabsList>
+
+        {/* Overview */}
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Target className="h-5 w-5 mr-2 text-blue-600" />
+                  Real Campaign Templates
+                </CardTitle>
+                <CardDescription>
+                  Templates for actual campaigns, organized by market (NL/US)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Netherlands (NL)</span>
+                    <Badge>{realTemplateStats.nl}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">United States (US)</span>
+                    <Badge variant="secondary">{realTemplateStats.us}</Badge>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <div className="flex justify-between items-center font-medium">
+                      <span>Total Real Templates</span>
+                      <Badge variant="default">{realTemplateStats.total}</Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <FileText className="h-5 w-5 mr-2 text-green-600" />
+                  Dummy Campaign Templates
+                </CardTitle>
+                <CardDescription>
+                  Templates for dummy campaigns (€3 budget, testing purposes)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Available Templates</span>
+                    <Badge>{dummyTemplateStats.total}</Badge>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Used for testing campaigns before deploying real ones
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {legacyTemplates.length > 0 && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                You have {legacyTemplates.length} legacy templates that need migration. 
+                Go to the "Legacy Templates" tab to migrate them to the new system.
+              </AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
 
         {/* Real Campaign Templates */}
         <TabsContent value="real" className="space-y-4">
-          <RealCampaignTemplateManager mode="manager" />
+          {activeTab === 'real' && <RealCampaignTemplateManager mode="manager" />}
         </TabsContent>
 
         {/* Dummy Templates */}
         <TabsContent value="dummy" className="space-y-4">
-          <TemplateManager />
+          {activeTab === 'dummy' && <TemplateManager />}
         </TabsContent>
 
         {/* Legacy Templates */}
@@ -317,74 +404,6 @@ export default function UnifiedTemplateManager({ onBack }: UnifiedTemplateManage
                 All your templates have been migrated to the new system!
               </p>
             </div>
-          )}
-        </TabsContent>
-
-        {/* Overview */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Target className="h-5 w-5 mr-2 text-blue-600" />
-                  Real Campaign Templates
-                </CardTitle>
-                <CardDescription>
-                  Templates for actual campaigns, organized by market (NL/US)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Netherlands (NL)</span>
-                    <Badge>{realTemplateStats.nl}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">United States (US)</span>
-                    <Badge variant="secondary">{realTemplateStats.us}</Badge>
-                  </div>
-                  <div className="pt-2 border-t">
-                    <div className="flex justify-between items-center font-medium">
-                      <span>Total Real Templates</span>
-                      <Badge variant="default">{realTemplateStats.total}</Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <FileText className="h-5 w-5 mr-2 text-green-600" />
-                  Dummy Campaign Templates
-                </CardTitle>
-                <CardDescription>
-                  Templates for dummy campaigns (€3 budget, testing purposes)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Available Templates</span>
-                    <Badge>{dummyTemplateStats.total}</Badge>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Used for testing campaigns before deploying real ones
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {legacyTemplates.length > 0 && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                You have {legacyTemplates.length} legacy templates that need migration. 
-                Go to the "Legacy Templates" tab to migrate them to the new system.
-              </AlertDescription>
-            </Alert>
           )}
         </TabsContent>
       </Tabs>

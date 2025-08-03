@@ -50,7 +50,6 @@ export default function RealCampaignTemplateManager({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<'NL' | 'US' | 'ALL'>('ALL')
-  const [currentTemplate, setCurrentTemplate] = useState<RealCampaignTemplate>(emptyTemplate)
 
   // Default empty template
   const emptyTemplate: RealCampaignTemplate = {
@@ -72,6 +71,8 @@ export default function RealCampaignTemplateManager({
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
+
+  const [currentTemplate, setCurrentTemplate] = useState<RealCampaignTemplate>(emptyTemplate)
 
   useEffect(() => {
     loadTemplates()
