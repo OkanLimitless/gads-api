@@ -50,6 +50,7 @@ export default function RealCampaignTemplateManager({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<'NL' | 'US' | 'ALL'>('ALL')
+  const [currentTemplate, setCurrentTemplate] = useState<RealCampaignTemplate>(emptyTemplate)
 
   // Default empty template
   const emptyTemplate: RealCampaignTemplate = {
@@ -165,8 +166,16 @@ export default function RealCampaignTemplateManager({
   const nlTemplates = templates.filter(t => t.category === 'NL')
   const usTemplates = templates.filter(t => t.category === 'US')
 
+  // Update currentTemplate when editing starts
+  useEffect(() => {
+    if (editingTemplate) {
+      setCurrentTemplate(editingTemplate)
+    } else if (isCreating) {
+      setCurrentTemplate(emptyTemplate)
+    }
+  }, [editingTemplate, isCreating])
+
   if (isCreating || editingTemplate) {
-    const currentTemplate = editingTemplate || emptyTemplate
     
     return (
       <div className="space-y-6">
@@ -211,9 +220,7 @@ export default function RealCampaignTemplateManager({
                   id="name"
                   value={currentTemplate.name}
                   onChange={(e) => {
-                    if (editingTemplate) {
-                      setEditingTemplate({ ...editingTemplate, name: e.target.value })
-                    }
+                    setCurrentTemplate({ ...currentTemplate, name: e.target.value })
                   }}
                   placeholder="Enter template name"
                   className="mt-1"
@@ -225,17 +232,15 @@ export default function RealCampaignTemplateManager({
                 <Select
                   value={currentTemplate.category}
                   onValueChange={(value: 'NL' | 'US') => {
-                    if (editingTemplate) {
-                      setEditingTemplate({ 
-                        ...editingTemplate, 
-                        category: value,
-                        data: {
-                          ...editingTemplate.data,
-                          locations: value === 'NL' ? ['NL'] : ['US'],
-                          languageCode: value === 'NL' ? 'nl' : 'en'
-                        }
-                      })
-                    }
+                    setCurrentTemplate({ 
+                      ...currentTemplate, 
+                      category: value,
+                      data: {
+                        ...currentTemplate.data,
+                        locations: value === 'NL' ? ['NL'] : ['US'],
+                        languageCode: value === 'NL' ? 'nl' : 'en'
+                      }
+                    })
                   }}
                 >
                   <SelectTrigger className="mt-1">
@@ -265,9 +270,7 @@ export default function RealCampaignTemplateManager({
                 id="description"
                 value={currentTemplate.description}
                 onChange={(e) => {
-                  if (editingTemplate) {
-                    setEditingTemplate({ ...editingTemplate, description: e.target.value })
-                  }
+                  setCurrentTemplate({ ...currentTemplate, description: e.target.value })
                 }}
                 placeholder="Enter template description"
                 rows={2}
@@ -284,12 +287,10 @@ export default function RealCampaignTemplateManager({
                   min="1"
                   value={currentTemplate.data.budget}
                   onChange={(e) => {
-                    if (editingTemplate) {
-                      setEditingTemplate({
-                        ...editingTemplate,
-                        data: { ...editingTemplate.data, budget: parseInt(e.target.value) || 1 }
-                      })
-                    }
+                    setCurrentTemplate({
+                      ...currentTemplate,
+                      data: { ...currentTemplate.data, budget: parseInt(e.target.value) || 1 }
+                    })
                   }}
                   className="mt-1"
                 />
@@ -301,12 +302,10 @@ export default function RealCampaignTemplateManager({
                   id="finalUrl"
                   value={currentTemplate.data.finalUrl}
                   onChange={(e) => {
-                    if (editingTemplate) {
-                      setEditingTemplate({
-                        ...editingTemplate,
-                        data: { ...editingTemplate.data, finalUrl: e.target.value }
-                      })
-                    }
+                    setCurrentTemplate({
+                      ...currentTemplate,
+                      data: { ...currentTemplate.data, finalUrl: e.target.value }
+                    })
                   }}
                   placeholder="https://example.com"
                   className="mt-1"
@@ -319,13 +318,11 @@ export default function RealCampaignTemplateManager({
               <Textarea
                 value={currentTemplate.data.headlines.join('\n')}
                 onChange={(e) => {
-                  if (editingTemplate) {
-                    const lines = e.target.value.split('\n')
-                    setEditingTemplate({
-                      ...editingTemplate,
-                      data: { ...editingTemplate.data, headlines: lines }
-                    })
-                  }
+                  const lines = e.target.value.split('\n')
+                  setCurrentTemplate({
+                    ...currentTemplate,
+                    data: { ...currentTemplate.data, headlines: lines }
+                  })
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -346,13 +343,11 @@ export default function RealCampaignTemplateManager({
               <Textarea
                 value={currentTemplate.data.descriptions.join('\n')}
                 onChange={(e) => {
-                  if (editingTemplate) {
-                    const lines = e.target.value.split('\n')
-                    setEditingTemplate({
-                      ...editingTemplate,
-                      data: { ...editingTemplate.data, descriptions: lines }
-                    })
-                  }
+                  const lines = e.target.value.split('\n')
+                  setCurrentTemplate({
+                    ...currentTemplate,
+                    data: { ...currentTemplate.data, descriptions: lines }
+                  })
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -373,13 +368,11 @@ export default function RealCampaignTemplateManager({
               <Textarea
                 value={currentTemplate.data.keywords.join('\n')}
                 onChange={(e) => {
-                  if (editingTemplate) {
-                    const lines = e.target.value.split('\n')
-                    setEditingTemplate({
-                      ...editingTemplate,
-                      data: { ...editingTemplate.data, keywords: lines }
-                    })
-                  }
+                  const lines = e.target.value.split('\n')
+                  setCurrentTemplate({
+                    ...currentTemplate,
+                    data: { ...currentTemplate.data, keywords: lines }
+                  })
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {

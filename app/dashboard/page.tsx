@@ -10,6 +10,7 @@ import CampaignCreationForm from '@/components/CampaignCreationForm'
 import DummyCampaignManager from '@/components/DummyCampaignManager'
 import TemplateManager from '@/components/TemplateManager'
 import ManualAccountLoader from '@/components/ManualAccountLoader'
+import UnifiedTemplateManager from '@/components/UnifiedTemplateManager'
 
 interface AdAccount {
   id: string
@@ -33,7 +34,7 @@ export default function Dashboard() {
   const [selectedClientAccount, setSelectedClientAccount] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
-  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager' | 'manual-accounts'>('mcc-selection')
+  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager' | 'manual-accounts' | 'unified-templates'>('mcc-selection')
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -139,6 +140,8 @@ export default function Dashboard() {
       setStep('mcc-selection')
     } else if (step === 'manual-accounts') {
       setStep('mcc-selection')
+    } else if (step === 'unified-templates') {
+      setStep('mcc-selection')
     }
   }
 
@@ -242,6 +245,12 @@ export default function Dashboard() {
               <>
                 <ChevronRight className="h-4 w-4" />
                 <span className="font-medium text-blue-600">Manual Account Loader</span>
+              </>
+            )}
+            {step === 'unified-templates' && (
+              <>
+                <ChevronRight className="h-4 w-4" />
+                <span className="font-medium text-blue-600">Template Manager</span>
               </>
             )}
           </div>
@@ -364,26 +373,26 @@ export default function Dashboard() {
                       </Card>
                     </div>
                     
-                    {/* Template Manager Quick Action */}
+                    {/* Unified Template Manager Quick Action */}
                     <div className="mt-6 pt-6 border-t">
-                      <Card className="border-purple-200 bg-purple-50">
+                      <Card className="border-blue-200 bg-blue-50">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="font-medium text-purple-900 mb-1">
+                              <h3 className="font-medium text-blue-900 mb-1">
                                 Template Manager
                               </h3>
-                              <p className="text-sm text-purple-700">
-                                Create and manage 100+ campaign templates for random selection in dummy campaigns
+                              <p className="text-sm text-blue-700">
+                                Manage all templates in one place: Real campaigns (NL/US), dummy campaigns, and legacy templates
                               </p>
                             </div>
                             <Button
-                              onClick={() => setStep('template-manager')}
+                              onClick={() => setStep('unified-templates')}
                               variant="outline"
-                              className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                              className="border-blue-300 text-blue-700 hover:bg-blue-100"
                             >
                               <FileText className="h-4 w-4 mr-2" />
-                              Manage Templates
+                              Manage All Templates
                             </Button>
                           </div>
                         </CardContent>
@@ -569,6 +578,11 @@ export default function Dashboard() {
           {/* Manual Account Loader Step */}
           {status === 'authenticated' && step === 'manual-accounts' && (
             <ManualAccountLoader onBack={() => setStep('mcc-selection')} />
+          )}
+
+          {/* Unified Template Manager Step */}
+          {status === 'authenticated' && step === 'unified-templates' && (
+            <UnifiedTemplateManager onBack={() => setStep('mcc-selection')} />
           )}
         </div>
       </div>
