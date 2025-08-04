@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     const mccCustomerClient = client.Customer({
       customer_id: mccId,
       refresh_token: session.refreshToken,
+      login_customer_id: mccId, // Required for MCC operations
     })
 
     const results = []
