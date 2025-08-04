@@ -52,19 +52,17 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`🔓 Unlinking account ${accountId} from MCC ${mccId}`)
 
-        // First, get the customer client link resource name
+        // Create the customer client link resource name
         const customerClientLinkResourceName = `customers/${mccId}/customerClientLinks/${accountId}`
 
         console.log(`🔧 Removing customer client link: ${customerClientLinkResourceName}`)
 
-        // Use mutateResources with CustomerClientLink remove operation
-        const operations = [{
-          entity: 'customer_client_link',
-          operation: 'remove',
-          resource_name: customerClientLinkResourceName
-        }]
+        // Use the CustomerClientLinkService to remove the link
+        const operation = {
+          remove: customerClientLinkResourceName
+        }
 
-        const response = await mccCustomerClient.mutateResources(operations)
+        const response = await mccCustomerClient.customerClientLinks.mutate([operation])
 
         console.log(`✅ Successfully unlinked account ${accountId}`)
         
