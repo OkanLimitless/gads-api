@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
 
         // Use mutateResources with the correct structure for customer client link operations
         const unlinkOperation = {
-          entity: 'customer_client_link',
-          operation: 'remove',
-          resource_name: customerClientLinkResourceName
+          customer_client_link_operation: {
+            remove: customerClientLinkResourceName
+          }
         }
 
         const response = await mccCustomerClient.mutateResources([unlinkOperation])
