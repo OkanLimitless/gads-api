@@ -249,7 +249,7 @@ export default function AccountUnlinkManager({
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Unlink Accounts from MCC</h2>
           <p className="text-gray-600 mt-1">
-            Select accounts to remove from MCC {mccId} {mccName && `(${mccName})`}
+            Select accounts to remove from MCC {mccId}
           </p>
         </div>
         {onBack && (
