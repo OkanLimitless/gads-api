@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { 
   AlertTriangle, 
   Unlink, 
@@ -23,6 +22,12 @@ interface AdAccount {
   timeZone: string
   status: string
   canManageCampaigns: boolean
+  testAccount: boolean
+  isManager: boolean
+  managerCustomerId?: string
+  level: number
+  accountType: 'MCC' | 'CLIENT' | 'UNKNOWN'
+  isSuspended?: boolean
   totalCampaigns?: number
   spendLast30Days?: number
   lastActivity?: string
@@ -55,6 +60,7 @@ export default function AccountUnlinkManager({
   const [unlinkResults, setUnlinkResults] = useState<UnlinkResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [filterStatus, setFilterStatus] = useState<'all' | 'suspended' | 'enabled'>('all')
 
   const handleAccountToggle = (accountId: string) => {
     const newSelected = new Set(selectedAccounts)
@@ -124,11 +130,29 @@ export default function AccountUnlinkManager({
     }
   }
 
+  const getFilteredAccounts = () => {
+    switch (filterStatus) {
+      case 'suspended':
+        return accounts.filter(account => account.isSuspended)
+      case 'enabled':
+        return accounts.filter(account => account.status === 'ENABLED')
+      default:
+        return accounts
+    }
+  }
+
   const getSelectedAccountsInfo = () => {
     return accounts.filter(account => selectedAccounts.has(account.id))
   }
 
+  const filteredAccounts = getFilteredAccounts()
   const selectedAccountsInfo = getSelectedAccountsInfo()
+  const suspendedAccounts = accounts.filter(account => account.isSuspended)
+
+  const handleSelectAllSuspended = () => {
+    const suspendedIds = suspendedAccounts.map(account => account.id)
+    setSelectedAccounts(new Set(suspendedIds))
+  }
 
   if (showConfirmation) {
     return (
@@ -291,31 +315,75 @@ export default function AccountUnlinkManager({
               </CardDescription>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox
+              <input
+                type="checkbox"
                 id="select-all"
-                checked={selectedAccounts.size === accounts.length && accounts.length > 0}
-                onCheckedChange={handleSelectAll}
+                checked={selectedAccounts.size === filteredAccounts.length && filteredAccounts.length > 0}
+                onChange={handleSelectAll}
+                className="h-4 w-4 rounded border border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
               />
-              <label htmlFor="select-all" className="text-sm font-medium">
-                Select All ({accounts.length})
-              </label>
+                              <label htmlFor="select-all" className="text-sm font-medium">
+                  Select All ({filteredAccounts.length})
+                </label>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {accounts.length === 0 ? (
+          {/* Status Filter Buttons */}
+          <div className="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+            <Button
+              size="sm"
+              variant={filterStatus === 'all' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('all')}
+            >
+              All Accounts ({accounts.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filterStatus === 'suspended' ? 'destructive' : 'outline'}
+              onClick={() => setFilterStatus('suspended')}
+            >
+              ⚠️ Suspended ({suspendedAccounts.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filterStatus === 'enabled' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('enabled')}
+            >
+              ✅ Enabled ({accounts.filter(a => a.status === 'ENABLED').length})
+            </Button>
+            {suspendedAccounts.length > 0 && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleSelectAllSuspended}
+                className="ml-auto"
+              >
+                Select All Suspended
+              </Button>
+            )}
+          </div>
+
+          {filteredAccounts.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Building2 className="h-12 w-12 mx-auto mb-2 text-gray-300" />
               <p>No client accounts found for this MCC</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {accounts.map((account) => (
-                <div key={account.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
-                  <Checkbox
+              {filteredAccounts.map((account) => (
+                <div 
+                  key={account.id} 
+                  className={`flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 ${
+                    account.isSuspended ? 'border-red-300 bg-red-50' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
                     id={`account-${account.id}`}
                     checked={selectedAccounts.has(account.id)}
-                    onCheckedChange={() => handleAccountToggle(account.id)}
+                    onChange={() => handleAccountToggle(account.id)}
+                    className="h-4 w-4 rounded border border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
                   />
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
@@ -336,9 +404,21 @@ export default function AccountUnlinkManager({
                           </div>
                         )}
                       </div>
-                      <Badge variant={account.status === 'ENABLED' ? 'default' : 'secondary'}>
-                        {account.status}
-                      </Badge>
+                      <div className="flex space-x-1">
+                        {account.isSuspended && (
+                          <Badge variant="destructive">
+                            ⚠️ SUSPENDED
+                          </Badge>
+                        )}
+                        <Badge variant={account.status === 'ENABLED' ? 'default' : 'secondary'}>
+                          {account.status}
+                        </Badge>
+                        {account.testAccount && (
+                          <Badge variant="outline">
+                            TEST
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
