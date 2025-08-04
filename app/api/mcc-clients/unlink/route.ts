@@ -19,45 +19,39 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { mccId, accountIds } = body
 
-    if (!mccId) {
-      return NextResponse.json({ error: 'MCC ID is required' }, { status: 400 })
-    }
-
-    if (!accountIds || !Array.isArray(accountIds) || accountIds.length === 0) {
-      return NextResponse.json({ error: 'Account IDs array is required' }, { status: 400 })
+    if (!mccId || !accountIds || !Array.isArray(accountIds) || accountIds.length === 0) {
+      console.log('❌ Missing required parameters')
+      return NextResponse.json({ error: 'Missing mccId or accountIds' }, { status: 400 })
     }
 
     console.log(`🔓 Unlinking ${accountIds.length} accounts from MCC: ${mccId}`)
     console.log('📋 Accounts to unlink:', accountIds)
 
-    // Initialize Google Ads client
-    const googleAdsClient = new GoogleAdsApi({
-      client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
-      developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+    // Initialize Google Ads API client
+    const client = new GoogleAdsApi({
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      developer_token: process.env.GOOGLE_DEVELOPER_TOKEN!,
     })
 
-    // Create customer client for the MCC account
-    const mccCustomerClient = googleAdsClient.Customer({
+    // Create customer instance for MCC account
+    const mccCustomerClient = client.Customer({
       customer_id: mccId,
       refresh_token: session.refreshToken,
-      login_customer_id: mccId, // Use MCC as login customer
     })
 
     const results = []
     const errors = []
 
-    // Process each account to unlink
     for (const accountId of accountIds) {
       try {
         console.log(`🔓 Unlinking account ${accountId} from MCC ${mccId}`)
-
+        
         // Create the customer client link resource name
         const customerClientLinkResourceName = `customers/${mccId}/customerClientLinks/${accountId}`
-
         console.log(`🔧 Removing customer client link: ${customerClientLinkResourceName}`)
 
-        // Use mutateResources with the correct structure for customer client link removal
+        // Create the operation for removing the customer client link
         const operations = [
           {
             entity: "customer_client_link",
@@ -66,71 +60,41 @@ export async function POST(request: NextRequest) {
           }
         ]
 
+        // Execute the mutation
         const response = await mccCustomerClient.mutateResources(operations)
-
-        console.log(`✅ Successfully unlinked account ${accountId}`)
         
+        console.log(`✅ Successfully unlinked account ${accountId}`)
         results.push({
           accountId,
-          status: 'success',
-          message: 'Account successfully unlinked from MCC'
+          success: true,
+          resourceName: response.results?.[0]?.resource_name || customerClientLinkResourceName
         })
-
-      } catch (error: any) {
+      } catch (error) {
         console.error(`💥 Error unlinking account ${accountId}:`, error)
-        
-        // Handle specific Google Ads API errors
-        let errorMessage = 'Unknown error occurred'
-        if (error.errors && error.errors.length > 0) {
-          errorMessage = error.errors[0].message || error.message
-        } else if (error.message) {
-          errorMessage = error.message
-        }
-
         errors.push({
           accountId,
-          status: 'error',
-          message: errorMessage,
-          error: error.toString()
-        })
-
-        results.push({
-          accountId,
-          status: 'error',
-          message: errorMessage
+          error: error instanceof Error ? error.message : 'Unknown error'
         })
       }
     }
 
-    const successCount = results.filter(r => r.status === 'success').length
-    const errorCount = results.filter(r => r.status === 'error').length
+    console.log(`📊 Unlink operation completed: ${results.length} successful, ${errors.length} errors`)
 
-    console.log(`📊 Unlink operation completed: ${successCount} successful, ${errorCount} errors`)
-
-    // Return results
     return NextResponse.json({
-      success: errorCount === 0,
-      message: errorCount === 0 
-        ? `Successfully unlinked ${successCount} accounts from MCC`
-        : `Unlinked ${successCount} accounts, ${errorCount} failed`,
+      success: errors.length === 0,
       results,
+      errors,
       summary: {
         total: accountIds.length,
-        successful: successCount,
-        failed: errorCount,
-        mccId,
-        accountIds
+        successful: results.length,
+        failed: errors.length
       }
     })
 
-  } catch (error: any) {
-    console.error('💥 Error in MCC unlink operation:', error)
+  } catch (error) {
+    console.error('💥 Unlink API error:', error)
     return NextResponse.json(
-      { 
-        success: false,
-        error: error.message || 'Failed to unlink accounts from MCC',
-        details: error.toString()
-      },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
