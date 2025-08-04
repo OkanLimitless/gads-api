@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [selectedClientAccount, setSelectedClientAccount] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
-  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager' | 'manual-accounts' | 'unified-templates'>('mcc-selection')
+  const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager' | 'manual-accounts' | 'unified-templates' | 'unlink-accounts'>('mcc-selection')
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -143,6 +143,8 @@ export default function Dashboard() {
       setStep('mcc-selection')
     } else if (step === 'unified-templates') {
       setStep('mcc-selection')
+    } else if (step === 'unlink-accounts') {
+      setStep('client-selection')
     }
   }
 
@@ -252,6 +254,12 @@ export default function Dashboard() {
               <>
                 <ChevronRight className="h-4 w-4" />
                 <span className="font-medium text-blue-600">Template Manager</span>
+              </>
+            )}
+            {step === 'unlink-accounts' && (
+              <>
+                <ChevronRight className="h-4 w-4" />
+                <span className="font-medium text-blue-600">Unlink Accounts</span>
               </>
             )}
           </div>
@@ -511,7 +519,31 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-
+            {/* Unlink Accounts Action */}
+            {clientAccounts.length > 0 && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-red-900 mb-1">
+                        Account Management
+                      </h3>
+                      <p className="text-sm text-red-700">
+                        Remove accounts from this MCC's management
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => setStep('unlink-accounts')}
+                      variant="destructive"
+                      size="sm"
+                    >
+                      <Unlink className="h-4 w-4 mr-2" />
+                      Unlink Accounts
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           )}
 
           {/* Step 3: Campaign Creation */}
@@ -588,7 +620,22 @@ export default function Dashboard() {
             <UnifiedTemplateManager onBack={() => setStep('mcc-selection')} />
           )}
 
-
+          {/* Account Unlink Manager Step */}
+          {status === 'authenticated' && step === 'unlink-accounts' && (
+            <AccountUnlinkManager
+              mccId={selectedMCC}
+              mccName={allAccounts.find(acc => acc.id === selectedMCC)?.name}
+              accounts={clientAccounts}
+              onBack={() => setStep('client-selection')}
+              onUnlinkComplete={(unlinkedAccounts) => {
+                console.log('✅ Unlinked accounts:', unlinkedAccounts)
+                // Refresh client accounts after unlinking
+                if (selectedMCC) {
+                  handleMCCSelection(selectedMCC)
+                }
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
