@@ -11,7 +11,7 @@
 
 **Copy and paste this URL (replace MCC ID):**
 ```
-/unlink-accounts?mccId=1284928552&mccName=Your%20MCC%20Name
+/unlink-accounts?mccId=1284928552
 ```
 
 ## ✨ **Full Feature Set**

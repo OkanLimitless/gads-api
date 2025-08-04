@@ -23,14 +23,12 @@ interface AdAccount {
 
 interface AccountUnlinkManagerWrapperProps {
   mccId: string
-  mccName?: string
   onBack?: () => void
   onUnlinkComplete?: (unlinkedAccounts: string[]) => void
 }
 
 export default function AccountUnlinkManagerWrapper({
   mccId,
-  mccName,
   onBack,
   onUnlinkComplete
 }: AccountUnlinkManagerWrapperProps) {
@@ -110,12 +108,11 @@ export default function AccountUnlinkManagerWrapper({
   }
 
   return (
-    <AccountUnlinkManager
-      mccId={mccId}
-      mccName={mccName}
-      accounts={accounts}
-      onBack={onBack}
-      onUnlinkComplete={handleUnlinkComplete}
-    />
+             <AccountUnlinkManager
+           mccId={mccId}
+           accounts={accounts}
+           onBack={onBack}
+           onUnlinkComplete={handleUnlinkComplete}
+         />
   )
 }

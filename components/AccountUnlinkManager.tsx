@@ -35,7 +35,6 @@ interface AdAccount {
 
 interface AccountUnlinkManagerProps {
   mccId: string
-  mccName?: string
   accounts: AdAccount[]
   onBack?: () => void
   onUnlinkComplete?: (unlinkedAccounts: string[]) => void
@@ -47,12 +46,11 @@ interface UnlinkResult {
   message: string
 }
 
-export default function AccountUnlinkManager({ 
-  mccId, 
-  mccName, 
-  accounts, 
-  onBack, 
-  onUnlinkComplete 
+export default function AccountUnlinkManager({
+  mccId,
+  accounts,
+  onBack,
+  onUnlinkComplete
 }: AccountUnlinkManagerProps) {
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
   const [isUnlinking, setIsUnlinking] = useState(false)

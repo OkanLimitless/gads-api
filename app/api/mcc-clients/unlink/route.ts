@@ -57,12 +57,14 @@ export async function POST(request: NextRequest) {
 
         console.log(`🔧 Removing customer client link: ${customerClientLinkResourceName}`)
 
-        // Use the CustomerClientLinkService with the mutateCustomerClientLink method
+        // Use the specific CustomerClientLinkService method to remove the link
         const unlinkOperation = {
-          remove: customerClientLinkResourceName
+          customer_client_link_operation: {
+            remove: customerClientLinkResourceName
+          }
         }
 
-        const response = await mccCustomerClient.customerClientLinks.mutate([unlinkOperation])
+        const response = await mccCustomerClient.mutateResources([unlinkOperation])
 
         console.log(`✅ Successfully unlinked account ${accountId}`)
         

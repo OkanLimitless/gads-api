@@ -4,10 +4,10 @@
 
 **Direct URL to unlink accounts:**
 ```
-/unlink-accounts?mccId=1284928552&mccName=Your%20MCC%20Name
+/unlink-accounts?mccId=1284928552
 ```
 
-Replace `1284928552` with your actual MCC ID.
+Replace `1284928552` with your actual MCC ID. The MCC name is no longer required.
 
 **✅ FIXED: API now working properly!**
 - The `mutate is not a function` error has been resolved

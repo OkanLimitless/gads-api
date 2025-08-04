@@ -13,7 +13,7 @@ export default function UnlinkAccountsPage() {
   const router = useRouter()
   
   const mccId = searchParams.get('mccId')
-  const mccName = searchParams.get('mccName')
+  // mccName is optional - we can get it from the account data if needed
 
   if (status === 'loading') {
     return (
@@ -72,9 +72,9 @@ export default function UnlinkAccountsPage() {
                 <h1 className="text-xl font-semibold text-gray-900">
                   Account Management
                 </h1>
-                <p className="text-sm text-gray-600">
-                  {mccName ? `MCC: ${mccName}` : `MCC ID: ${mccId}`}
-                </p>
+                                     <p className="text-sm text-gray-600">
+                       MCC ID: {mccId}
+                     </p>
               </div>
             </div>
           </div>
@@ -83,15 +83,14 @@ export default function UnlinkAccountsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <AccountUnlinkManagerWrapper
-          mccId={mccId}
-          mccName={mccName || undefined}
-          onBack={() => router.push('/dashboard')}
-          onUnlinkComplete={(unlinkedAccounts) => {
-            console.log('✅ Unlinked accounts:', unlinkedAccounts)
-            // Could show a success message or redirect
-          }}
-        />
+                     <AccountUnlinkManagerWrapper
+               mccId={mccId}
+               onBack={() => router.push('/dashboard')}
+               onUnlinkComplete={(unlinkedAccounts) => {
+                 console.log('✅ Unlinked accounts:', unlinkedAccounts)
+                 // Could show a success message or redirect
+               }}
+             />
       </main>
     </div>
   )

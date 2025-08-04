@@ -7,19 +7,19 @@ Since the dashboard integration has temporary syntax issues, you can access the 
 ### **Method 1: Direct URL**
 Navigate to:
 ```
-/unlink-accounts?mccId=1284928552&mccName=Your%20MCC%20Name
+/unlink-accounts?mccId=1284928552
 ```
 
 ### **Method 2: Add URL Bar Bookmark**
 Bookmark this URL for quick access:
 ```
-https://your-domain.com/unlink-accounts?mccId=1284928552&mccName=Your%20MCC%20Name
+https://your-domain.com/unlink-accounts?mccId=1284928552
 ```
 
 ### **Method 3: Browser Console (Quick Test)**
 Open browser console on your dashboard and run:
 ```javascript
-window.location.href = '/unlink-accounts?mccId=1284928552&mccName=Your MCC Name';
+window.location.href = '/unlink-accounts?mccId=1284928552';
 ```
 
 ## ✅ **WORKING FEATURES**
