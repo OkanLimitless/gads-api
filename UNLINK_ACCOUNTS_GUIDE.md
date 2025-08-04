@@ -11,7 +11,8 @@ Replace `1284928552` with your actual MCC ID.
 
 **✅ FIXED: API now working properly!**
 - The `mutate is not a function` error has been resolved
-- Updated to use correct `mutateResources` method with proper structure
+- The `Mutate operations must have create, update, or remove specified` error has been resolved
+- Updated to use correct `mutateResources` method with proper Google Ads API v20 structure
 - Ready for production use
 
 ## ✨ Features

@@ -41,8 +41,9 @@ window.location.href = '/unlink-accounts?mccId=1284928552&mccName=Your MCC Name'
 
 ### **🔧 Fixed API**
 - ✅ **No more `mutate is not a function` errors**
+- ✅ **No more `Mutate operations must have create, update, or remove specified` errors**
 - ✅ **Proper `mutateResources` implementation**
-- ✅ **Correct Google Ads API structure**
+- ✅ **Correct Google Ads API v20 structure**
 
 ## 🎯 **Perfect for Suspended Account Cleanup**
 
