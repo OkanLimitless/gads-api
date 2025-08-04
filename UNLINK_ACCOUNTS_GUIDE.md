@@ -16,7 +16,7 @@ Replace `1284928552` with your actual MCC ID. The MCC name is no longer required
   ```javascript
   entity: 'customer_client_link',
   operation: 'remove', 
-  resource_name: customerClientLinkResourceName
+  resource: customerClientLinkResourceName  // Note: 'resource', not 'resource_name'
   ```
 - Uses the same pattern as all other operations in our codebase
 - Ready for production use
