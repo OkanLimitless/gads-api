@@ -55,9 +55,7 @@ export async function POST(request: NextRequest) {
         // Create the operation for removing the customer client link
         const operations = [
           {
-            entity: "customer_client_link",
-            operation: "remove",
-            resource_name: customerClientLinkResourceName
+            remove: customerClientLinkResourceName
           }
         ]
 
