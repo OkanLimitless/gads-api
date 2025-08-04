@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         const operations = [{
           entity: 'customer_client_link',
           operation: 'remove',
-          resource_name: customerClientLinkResourceName
+          resource: customerClientLinkResourceName
         }]
 
         const response = await mccCustomerClient.mutateResources(operations)
