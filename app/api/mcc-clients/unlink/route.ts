@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
 
     // Initialize Google Ads API client
     const client = new GoogleAdsApi({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      developer_token: process.env.GOOGLE_DEVELOPER_TOKEN!,
+      client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
+      developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
     })
 
     // Create customer instance for MCC account
