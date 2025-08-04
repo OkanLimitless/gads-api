@@ -9,6 +9,11 @@
 
 Replace `1284928552` with your actual MCC ID.
 
+**✅ FIXED: API now working properly!**
+- The `mutate is not a function` error has been resolved
+- Updated to use correct `mutateResources` method with proper structure
+- Ready for production use
+
 ## ✨ Features
 
 ### 🔍 **Suspended Account Detection**
