@@ -10,10 +10,15 @@
 Replace `1284928552` with your actual MCC ID. The MCC name is no longer required.
 
 **✅ FIXED: API now working properly!**
-- The `mutate is not a function` error has been resolved
+- The `customerClientLinks.mutate is not a function` error has been resolved
 - The `Mutate operations must have create, update, or remove specified` error has been resolved
-- Updated to use correct `mutateResources` method matching our existing codebase structure
-- Uses the same entity/operation/resource pattern as all other operations
+- Updated to use correct `mutateResources` method with proper structure:
+  ```javascript
+  entity: 'customer_client_link',
+  operation: 'remove', 
+  resource_name: customerClientLinkResourceName
+  ```
+- Uses the same pattern as all other operations in our codebase
 - Ready for production use
 
 ## ✨ Features
