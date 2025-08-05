@@ -742,7 +742,12 @@ export async function createCampaign(
         'GB': 2826, // United Kingdom
         'AU': 2036, // Australia
         'DE': 2276, // Germany
-        'FR': 2250  // France
+        'FR': 2250, // France
+        'NL': 2528, // Netherlands
+        'nl': 2528, // Netherlands (lowercase)
+        'netherlands': 2528, // Netherlands (full name)
+        'NETHERLANDS': 2528, // Netherlands (uppercase)
+        '2528': 2528 // Netherlands (numeric geo target constant)
       }
 
       // Terminix targeting states (geo target constants)
@@ -783,13 +788,17 @@ export async function createCampaign(
           locationMutateOperations.push(...terminixOperations)
         } else {
           // Regular country targeting
+          const geoTargetId = locationCriteriaMap[location]
+          if (!geoTargetId) {
+            console.warn(`⚠️  Unknown location '${location}', defaulting to United States (2840). Available locations:`, Object.keys(locationCriteriaMap))
+          }
           locationMutateOperations.push({
             entity: "campaign_criterion",
             operation: "create",
             resource: {
               campaign: campaignResourceName,
               location: {
-                geo_target_constant: `geoTargetConstants/${locationCriteriaMap[location] || 2840}`
+                geo_target_constant: `geoTargetConstants/${geoTargetId || 2840}`
               }
             }
           })
@@ -820,16 +829,25 @@ export async function createCampaign(
         'es': 1003, // Spanish
         'fr': 1002, // French
         'de': 1001, // German
-        'it': 1004  // Italian
+        'it': 1004, // Italian
+        'nl': 1019, // Dutch
+        'dutch': 1019, // Dutch (full name)
+        'DUTCH': 1019, // Dutch (uppercase)
+        'NL': 1019   // Dutch (country code uppercase)
       }
 
+      const languageConstantId = languageCriteriaMap[campaignData.languageCode]
+      if (!languageConstantId) {
+        console.warn(`⚠️  Unknown language '${campaignData.languageCode}', defaulting to English (1000). Available languages:`, Object.keys(languageCriteriaMap))
+      }
+      
       const languageMutateOperations = [{
         entity: "campaign_criterion",
         operation: "create",
         resource: {
           campaign: campaignResourceName,
           language: {
-            language_constant: `languageConstants/${languageCriteriaMap[campaignData.languageCode] || 1000}`
+            language_constant: `languageConstants/${languageConstantId || 1000}`
           }
         }
       }]
