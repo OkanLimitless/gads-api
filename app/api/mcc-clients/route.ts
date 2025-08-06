@@ -66,12 +66,13 @@ export async function GET(request: NextRequest) {
       FROM customer_client
       WHERE customer_client.level = 1
       AND customer_client.manager = false
+      AND customer_client.status = 'ENABLED'
     `
 
-    console.log(`📊 Querying client accounts for MCC ${mccId}...`)
+    console.log(`📊 Querying active client accounts for MCC ${mccId}...`)
     const clientsResponse = await mccCustomerClient.query(clientsQuery)
 
-    console.log(`✅ Found ${clientsResponse.length} client accounts:`, clientsResponse)
+    console.log(`✅ Found ${clientsResponse.length} active client accounts:`, clientsResponse)
 
     // Transform the response to match our AdAccount interface
     const clientAccounts = clientsResponse.map((item: any) => {

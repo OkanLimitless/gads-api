@@ -10,6 +10,54 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, Plus, Edit, Trash2, Save, X, AlertCircle, CheckCircle, Flag, Target, Globe } from 'lucide-react'
 
+// Helper function to get language display name
+const getLanguageDisplayName = (languageCode?: string): string => {
+  const languageMap: Record<string, string> = {
+    'ar': 'Arabic',
+    'bg': 'Bulgarian',
+    'ca': 'Catalan',
+    'zh': 'Chinese (Simplified)',
+    'zh-cn': 'Chinese (Simplified)',
+    'zh-tw': 'Chinese (Traditional)',
+    'hr': 'Croatian',
+    'cs': 'Czech',
+    'da': 'Danish',
+    'nl': 'Dutch',
+    'en': 'English',
+    'et': 'Estonian',
+    'fi': 'Finnish',
+    'fr': 'French',
+    'de': 'German',
+    'el': 'Greek',
+    'he': 'Hebrew',
+    'hi': 'Hindi',
+    'hu': 'Hungarian',
+    'id': 'Indonesian',
+    'it': 'Italian',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'lv': 'Latvian',
+    'lt': 'Lithuanian',
+    'ms': 'Malay',
+    'no': 'Norwegian',
+    'pl': 'Polish',
+    'pt': 'Portuguese',
+    'ro': 'Romanian',
+    'ru': 'Russian',
+    'sr': 'Serbian',
+    'sk': 'Slovak',
+    'sl': 'Slovenian',
+    'es': 'Spanish',
+    'sv': 'Swedish',
+    'th': 'Thai',
+    'tr': 'Turkish',
+    'uk': 'Ukrainian',
+    'vi': 'Vietnamese'
+  }
+  
+  return languageMap[languageCode || 'en'] || 'English'
+}
+
 interface RealCampaignTemplate {
   _id?: string
   name: string
@@ -495,7 +543,7 @@ export default function RealCampaignTemplateManager({
                       <div>Headlines: {template.data.headlines.filter(h => h.trim()).length}</div>
                       <div>Descriptions: {template.data.descriptions.filter(d => d.trim()).length}</div>
                       <div>Keywords: {template.data.keywords.filter(k => k.trim()).length}</div>
-                      <div>Language: {template.data.languageCode === 'nl' ? 'Dutch' : 'English'}</div>
+                      <div>Language: {getLanguageDisplayName(template.data.languageCode)}</div>
                     </div>
                     
                     <div className="flex space-x-2 mt-4">

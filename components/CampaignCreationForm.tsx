@@ -574,17 +574,31 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
 
             <div>
               <Label>Language</Label>
-              <Select value={campaignData.languageCode} onValueChange={(value) => updateCampaignData('languageCode', value)}>
+              <Select onValueChange={(value) => setCampaignData(prev => ({ ...prev, languageCode: value }))}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select target language" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="es">Spanish</SelectItem>
-                  <SelectItem value="fr">French</SelectItem>
-                  <SelectItem value="de">German</SelectItem>
-                  <SelectItem value="it">Italian</SelectItem>
                   <SelectItem value="nl">Dutch</SelectItem>
+                  <SelectItem value="ar">Arabic</SelectItem>
+                  <SelectItem value="de">German</SelectItem>
+                  <SelectItem value="fr">French</SelectItem>
+                  <SelectItem value="es">Spanish</SelectItem>
+                  <SelectItem value="it">Italian</SelectItem>
+                  <SelectItem value="pt">Portuguese</SelectItem>
+                  <SelectItem value="ru">Russian</SelectItem>
+                  <SelectItem value="ja">Japanese</SelectItem>
+                  <SelectItem value="ko">Korean</SelectItem>
+                  <SelectItem value="zh">Chinese (Simplified)</SelectItem>
+                  <SelectItem value="hi">Hindi</SelectItem>
+                  <SelectItem value="th">Thai</SelectItem>
+                  <SelectItem value="tr">Turkish</SelectItem>
+                  <SelectItem value="pl">Polish</SelectItem>
+                  <SelectItem value="sv">Swedish</SelectItem>
+                  <SelectItem value="da">Danish</SelectItem>
+                  <SelectItem value="no">Norwegian</SelectItem>
+                  <SelectItem value="fi">Finnish</SelectItem>
                 </SelectContent>
               </Select>
             </div>
