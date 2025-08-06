@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
         const customerClientLinkResourceName = `customers/${mccId}/customerClientLinks/${accountId}`
         console.log(`🔧 Removing customer client link: ${customerClientLinkResourceName}`)
 
-        // Use mutateResources with CustomerClientLink remove operation
+        // Use mutateResources with proper structure for customer client link removal
         const operations = [{
-          customer_client_link_operation: {
+          customer_client_link: {
             remove: customerClientLinkResourceName
           }
         }]
