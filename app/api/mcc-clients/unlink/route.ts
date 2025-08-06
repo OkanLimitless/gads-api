@@ -52,9 +52,15 @@ export async function POST(request: NextRequest) {
         const customerClientLinkResourceName = `customers/${mccId}/customerClientLinks/${accountId}`
         console.log(`🔧 Removing customer client link: ${customerClientLinkResourceName}`)
 
-        // Use the customerClientLinks service directly for removing the link
-        // Based on google-ads-api library pattern
-        const response = await mccCustomerClient.customerClientLinks.delete(customerClientLinkResourceName)
+        // Use mutateResources with customer_client_link entity for removing the link
+        // Based on google-ads-api library documented pattern
+        const operations = [{
+          entity: 'customer_client_link',
+          operation: 'remove',
+          resource: customerClientLinkResourceName
+        }]
+        
+        const response = await mccCustomerClient.mutateResources(operations)
         
         console.log(`✅ Successfully unlinked account ${accountId}`)
         results.push({
