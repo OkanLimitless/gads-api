@@ -54,9 +54,9 @@ export async function POST(request: NextRequest) {
 
         // Use mutateResources with proper structure for customer client link removal
         const operations = [{
-          customer_client_link: {
-            remove: customerClientLinkResourceName
-          }
+          entity: 'customer_client_link',
+          operation: 'remove',
+          resource: customerClientLinkResourceName
         }]
 
         // Execute the mutation
