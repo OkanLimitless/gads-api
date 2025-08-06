@@ -110,8 +110,8 @@ export default function SuspendedAccountsPage() {
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
                 <li>Scans your MCC for client accounts with "SUSPENDED" or "CANCELED" status</li>
                 <li>Provides detailed information about each suspended account</li>
-                <li>Allows you to unlink suspended accounts to clean up your MCC structure</li>
-                <li>Helps improve MCC management efficiency by removing inactive accounts</li>
+                <li>Helps identify inactive accounts in your MCC structure</li>
+                <li>Provides direct links to Google Ads interface for manual account management</li>
               </ul>
             </div>
             
@@ -120,16 +120,16 @@ export default function SuspendedAccountsPage() {
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
                 <li>Suspended accounts cannot run campaigns or generate revenue</li>
                 <li>They clutter your MCC interface and make account management harder</li>
-                <li>Unlinking them improves your MCC's organization and performance</li>
-                <li>Google Ads UI sometimes has issues unlinking accounts - this tool provides an alternative</li>
+                <li>Identifying them helps you understand your account portfolio health</li>
+                <li>You can manually remove them through the Google Ads interface if needed</li>
               </ul>
             </div>
 
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                <strong>Important:</strong> Unlinking an account removes it from your MCC permanently. 
-                Make sure you no longer need to manage these accounts before unlinking them.
+                <strong>Note:</strong> This tool identifies suspended accounts for your review. 
+                Any account removal must be done manually through the Google Ads interface.
               </AlertDescription>
             </Alert>
           </CardContent>

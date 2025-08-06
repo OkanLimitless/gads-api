@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Link2, LogOut, Building2, Users, Target, AlertCircle, Loader2, ChevronRight, FileText, Unlink } from 'lucide-react'
+import { ArrowLeft, Link2, LogOut, Building2, Users, Target, AlertCircle, Loader2, ChevronRight, FileText } from 'lucide-react'
 import Link from 'next/link'
 import CampaignCreationForm from '@/components/CampaignCreationForm'
 import DummyCampaignManager from '@/components/DummyCampaignManager'
 import TemplateManager from '@/components/TemplateManager'
 import ManualAccountLoader from '@/components/ManualAccountLoader'
 import UnifiedTemplateManager from '@/components/UnifiedTemplateManager'
-import AccountUnlinkManager from '@/components/AccountUnlinkManager'
+
 
 interface AdAccount {
   id: string
@@ -367,22 +367,7 @@ export default function Dashboard() {
                               <AlertCircle className="h-3 w-3 mr-1" />
                               Check Suspended
                             </Button>
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const params = new URLSearchParams({
-                                  mccId: account.id,
-                                  mccName: account.name
-                                })
-                                window.open(`/unlink-accounts?${params.toString()}`, '_blank')
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 text-xs border-gray-300 text-gray-700 hover:bg-gray-50"
-                            >
-                              <Unlink className="h-3 w-3 mr-1" />
-                              Unlink All
-                            </Button>
+
                           </div>
                         </div>
                       ))}
@@ -477,7 +462,7 @@ export default function Dashboard() {
                                   Suspended Account Detection
                                 </h4>
                                 <p className="text-sm text-red-700">
-                                  Find and unlink suspended client accounts to clean up your MCC structure
+                                  Find and identify suspended client accounts in your MCC structure
                                 </p>
                               </div>
                               <Button

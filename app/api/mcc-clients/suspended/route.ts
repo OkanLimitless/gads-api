@@ -63,8 +63,19 @@ export async function GET(request: NextRequest) {
 
     console.log(`⚠️ Found ${clientsResponse.length} suspended client accounts:`, clientsResponse)
 
+    // Account IDs to exclude from suspended list (requested by user)
+    const excludedAccountIds = [
+      '1981739507',
+      '2455272543', 
+      '2943276700',
+      '5353988239',
+      '5299881560',
+      '6575141691'
+    ]
+
     // Transform the response to match our AdAccount interface
-    const suspendedAccounts = clientsResponse.map((item: any) => {
+    const suspendedAccounts = clientsResponse
+      .map((item: any) => {
       const client = item.customer_client
       const clientId = client.client_customer?.split('/')[1] || 'unknown'
       const status = client.status || 'UNKNOWN'
@@ -86,6 +97,7 @@ export async function GET(request: NextRequest) {
         detectedAt: new Date().toISOString(),
       }
     })
+    .filter((account: any) => !excludedAccountIds.includes(account.id))
 
     // Get additional details about why accounts might be suspended
     let suspensionDetails = []
@@ -142,7 +154,7 @@ export async function GET(request: NextRequest) {
       },
       mccId,
       recommendation: suspendedAccounts.length > 0 
-        ? "Consider unlinking suspended accounts to clean up your MCC structure and improve management efficiency."
+        ? "Review suspended accounts and manually remove them from your MCC through the Google Ads interface if necessary."
         : "No suspended accounts detected. Your MCC is clean!"
     }
 

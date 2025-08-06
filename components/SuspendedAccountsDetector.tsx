@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { AlertTriangle, Loader2, ExternalLink, Trash2, RefreshCw, CheckCircle } from 'lucide-react'
+import { AlertTriangle, Loader2, ExternalLink, RefreshCw } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -64,8 +64,6 @@ export default function SuspendedAccountsDetector({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
-  const [isUnlinking, setIsUnlinking] = useState(false)
-  const [unlinkResults, setUnlinkResults] = useState<{ [key: string]: boolean }>({})
 
   useEffect(() => {
     if (mccId) {
@@ -124,56 +122,7 @@ export default function SuspendedAccountsDetector({
     }
   }
 
-  const handleUnlinkAccounts = async () => {
-    if (selectedAccounts.size === 0 || !data) return
 
-    setIsUnlinking(true)
-    const accountIds = Array.from(selectedAccounts)
-
-    try {
-      console.log(`🔗 Unlinking ${accountIds.length} suspended accounts from MCC ${mccId}`)
-      
-      const response = await fetch('/api/mcc-clients/unlink', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          mccId,
-          accountIds,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      console.log('✅ Unlink result:', result)
-
-      if (result.success) {
-        // Update the unlink results
-        const newResults: { [key: string]: boolean } = {}
-        accountIds.forEach(id => {
-          newResults[id] = result.results?.[id]?.success || false
-        })
-        setUnlinkResults(newResults)
-
-        // Refresh the suspended accounts list
-        await detectSuspendedAccounts()
-        
-        // Clear selection
-        setSelectedAccounts(new Set())
-      } else {
-        throw new Error(result.error || 'Failed to unlink accounts')
-      }
-    } catch (err) {
-      console.error('❌ Error unlinking accounts:', err)
-      setError(err instanceof Error ? err.message : 'Failed to unlink accounts')
-    } finally {
-      setIsUnlinking(false)
-    }
-  }
 
   const getSuspensionDetails = (accountId: string): SuspensionDetails | undefined => {
     return data?.suspensionDetails.find(detail => detail.accountId === accountId)
@@ -312,19 +261,7 @@ export default function SuspendedAccountsDetector({
                 >
                   {selectedAccounts.size === data.suspendedAccounts.length ? 'Deselect All' : 'Select All'}
                 </Button>
-                <Button
-                  onClick={handleUnlinkAccounts}
-                  disabled={selectedAccounts.size === 0 || isUnlinking}
-                  variant="destructive"
-                  size="sm"
-                >
-                  {isUnlinking ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 mr-2" />
-                  )}
-                  Unlink Selected ({selectedAccounts.size})
-                </Button>
+
               </div>
             </div>
           </CardHeader>
@@ -347,17 +284,15 @@ export default function SuspendedAccountsDetector({
                 {data.suspendedAccounts.map((account) => {
                   const details = getSuspensionDetails(account.id)
                   const isSelected = selectedAccounts.has(account.id)
-                  const unlinkResult = unlinkResults[account.id]
 
                   return (
-                    <TableRow key={account.id} className={unlinkResult === true ? 'bg-green-50' : ''}>
+                    <TableRow key={account.id}>
                       <TableCell>
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={(e) => handleAccountSelection(account.id, e.target.checked)}
                           className="rounded"
-                          disabled={unlinkResult === true}
                         />
                       </TableCell>
                       <TableCell className="font-medium">{account.name}</TableCell>
@@ -386,20 +321,13 @@ export default function SuspendedAccountsDetector({
                         )}
                       </TableCell>
                       <TableCell>
-                        {unlinkResult === true ? (
-                          <div className="flex items-center gap-1 text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="text-xs">Unlinked</span>
-                          </div>
-                        ) : (
-                          <Button
-                            onClick={() => window.open(`https://ads.google.com/aw/accounts?ocid=${account.id}`, '_blank')}
-                            variant="ghost"
-                            size="sm"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          onClick={() => window.open(`https://ads.google.com/aw/accounts?ocid=${account.id}`, '_blank')}
+                          variant="ghost"
+                          size="sm"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   )
