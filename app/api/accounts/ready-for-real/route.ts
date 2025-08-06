@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
-import { getAccountsReadyForRealCampaigns, updateDummyCampaignPerformance } from '@/lib/dummy-campaign-tracker'
+import { getAccountsReadyForRealCampaigns, updateDummyCampaignPerformance, cleanupStaleAccountData } from '@/lib/dummy-campaign-tracker'
 import { getClientAccounts } from '@/lib/google-ads-client'
 
 export const runtime = 'nodejs'
@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const updatePerformance = searchParams.get('updatePerformance') === 'true'
+    const cleanupStale = searchParams.get('cleanupStale') === 'true'
 
     // Get client accounts from MCC
     const knownMCCId = '1284928552'
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     
     let readyAccounts = []
     let performanceUpdated = 0
+    let cleanupResult = null
 
     if (updatePerformance) {
       console.log('📊 Updating performance data for all accounts...')
@@ -42,11 +44,30 @@ export async function GET(request: NextRequest) {
       console.log(`✅ Updated performance for ${performanceUpdated}/${clientAccounts.length} accounts`)
     }
 
+    // Optional cleanup of stale account data
+    if (cleanupStale) {
+      console.log('🧹 Cleaning up stale account data...')
+      const validAccountIds = clientAccounts.map(acc => acc.id)
+      cleanupResult = await cleanupStaleAccountData(validAccountIds)
+      console.log(`✅ Cleanup completed: removed ${cleanupResult.removedCampaigns} campaigns from ${cleanupResult.affectedAccounts.length} stale accounts`)
+    }
+
     // Get accounts that are ready for real campaigns (with real campaign filtering)
     readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken)
     
+    // Filter out accounts that are no longer available in the MCC (suspended/removed accounts)
+    const availableReadyAccounts = readyAccounts.filter(readyAccount => {
+      const isAvailableInMCC = clientAccounts.some(acc => acc.id === readyAccount.accountId)
+      if (!isAvailableInMCC) {
+        console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not found in MCC (likely suspended/removed)`)
+      }
+      return isAvailableInMCC
+    })
+    
+    console.log(`🔍 Filtered accounts: ${availableReadyAccounts.length}/${readyAccounts.length} accounts are still available in MCC`)
+    
     // Enrich with account names from Google Ads
-    const enrichedAccounts = readyAccounts.map(readyAccount => {
+    const enrichedAccounts = availableReadyAccounts.map(readyAccount => {
       const gadsAccount = clientAccounts.find(acc => acc.id === readyAccount.accountId)
       return {
         ...readyAccount,
@@ -62,6 +83,8 @@ export async function GET(request: NextRequest) {
       readyAccounts: enrichedAccounts,
       totalReadyAccounts: enrichedAccounts.length,
       performanceUpdated: updatePerformance ? performanceUpdated : null,
+      cleanupResult: cleanupStale ? cleanupResult : null,
+      filteredAccounts: readyAccounts.length - availableReadyAccounts.length,
       criteria: {
         minimumSpend: '€10.00',
         timeframe: '7 days',

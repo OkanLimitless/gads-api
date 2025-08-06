@@ -267,3 +267,44 @@ export async function isAccountReadyForRealCampaign(accountId: string): Promise<
     return false
   }
 }
+
+// Clean up dummy campaign data for accounts that are no longer in the MCC
+export async function cleanupStaleAccountData(validAccountIds: string[]): Promise<{
+  removedCampaigns: number
+  affectedAccounts: string[]
+}> {
+  try {
+    const collection = await getDummyCampaignTrackingCollection()
+    
+    // Find campaigns for accounts that are no longer in the MCC
+    const staleCampaigns = await collection.find({
+      accountId: { $nin: validAccountIds }
+    }).toArray()
+    
+    if (staleCampaigns.length === 0) {
+      console.log('✅ No stale campaign data found')
+      return { removedCampaigns: 0, affectedAccounts: [] }
+    }
+    
+    // Get unique account IDs that will be affected
+    const affectedAccounts = [...new Set(staleCampaigns.map(campaign => campaign.accountId))]
+    
+    console.log(`🧹 Found ${staleCampaigns.length} campaigns from ${affectedAccounts.length} stale accounts`)
+    console.log(`📋 Stale accounts: ${affectedAccounts.join(', ')}`)
+    
+    // Remove the stale data
+    const deleteResult = await collection.deleteMany({
+      accountId: { $nin: validAccountIds }
+    })
+    
+    console.log(`✅ Cleaned up ${deleteResult.deletedCount} stale campaign records`)
+    
+    return {
+      removedCampaigns: deleteResult.deletedCount,
+      affectedAccounts
+    }
+  } catch (error) {
+    console.error('💥 Error cleaning up stale account data:', error)
+    throw error
+  }
+}
