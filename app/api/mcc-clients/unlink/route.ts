@@ -50,17 +50,16 @@ export async function POST(request: NextRequest) {
         
         // Create the customer client link resource name
         const customerClientLinkResourceName = `customers/${mccId}/customerClientLinks/${accountId}`
-        console.log(`🔧 Removing customer client link: ${customerClientLinkResourceName}`)
+        console.log(`🔧 Attempting to remove customer client link: ${customerClientLinkResourceName}`)
 
-        // Use mutateResources with customer_client_link_operation for removing the link
-        // Following the pattern from Google Ads API documentation
-        const operations = [{
-          customer_client_link_operation: {
-            remove: customerClientLinkResourceName
-          }
-        }]
+        // Note: Google Ads API does not support programmatic removal of customer client links
+        // This is a security restriction to prevent unauthorized account unlinking
+        console.log(`⚠️  Google Ads API Restriction: Customer client links cannot be removed programmatically`)
+        console.log(`⚠️  This operation must be performed manually in the Google Ads interface`)
+        console.log(`⚠️  See: https://support.google.com/google-ads/answer/7459601 for manual unlinking instructions`)
         
-        const response = await mccCustomerClient.mutateResources(operations)
+        // Instead of attempting the API call that will fail, return a descriptive error
+        throw new Error(`Customer client link removal is not supported via Google Ads API. This operation must be performed manually in the Google Ads interface. Please visit https://support.google.com/google-ads/answer/7459601 for instructions on how to manually unlink account ${accountId} from MCC ${mccId}.`)
         
         console.log(`✅ Successfully unlinked account ${accountId}`)
         results.push({
