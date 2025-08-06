@@ -52,13 +52,17 @@ export async function POST(request: NextRequest) {
         const customerClientLinkResourceName = `customers/${mccId}/customerClientLinks/${accountId}`
         console.log(`🔧 Removing customer client link: ${customerClientLinkResourceName}`)
 
-        // Use the specific customer client links service with delete operation
+        // Use the CustomerClientLinkService directly for removing the link
+        // Based on Google Ads API documentation examples
         const operation = {
           remove: customerClientLinkResourceName
         }
 
-        // Execute the mutation using the specific service
-        const response = await mccCustomerClient.customerClientLinks.mutate([operation])
+        // Execute the mutation using the proper service approach from the library
+        const response = await mccCustomerClient.services.CustomerClientLinkService.mutateCustomerClientLinks(
+          mccId,
+          [operation]
+        )
         
         console.log(`✅ Successfully unlinked account ${accountId}`)
         results.push({
