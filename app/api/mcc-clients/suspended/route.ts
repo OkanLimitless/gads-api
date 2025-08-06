@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
     })
 
     // Query ALL customer clients managed by this MCC to find suspended ones
+    // Note: Google Ads Query Language doesn't support OR with parentheses
+    // We'll need to make two separate queries or use a different approach
     const clientsQuery = `
       SELECT 
         customer_client.client_customer,
@@ -53,7 +55,7 @@ export async function GET(request: NextRequest) {
       FROM customer_client
       WHERE customer_client.level = 1
       AND customer_client.manager = false
-      AND (customer_client.status = 'SUSPENDED' OR customer_client.status = 'CANCELED')
+      AND customer_client.status != 'ENABLED'
     `
 
     console.log(`🚨 Querying suspended client accounts for MCC ${mccId}...`)
