@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]/route'
-import { MongoClient, ObjectId } from 'mongodb'
+import { ObjectId } from 'mongodb'
+import getMongoClientPromise from '@/lib/mongodb'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// MongoDB connection
-const client = new MongoClient(process.env.MONGODB_URI!)
-
 async function getCampaignTemplatesCollection() {
-  await client.connect()
+  const client = await getMongoClientPromise()
   const db = client.db('google_ads_manager')
   return db.collection('campaign_templates') // Different collection from dummy templates
 }
