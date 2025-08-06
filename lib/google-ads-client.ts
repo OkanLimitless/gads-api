@@ -467,8 +467,16 @@ export async function createCampaign(
       }
       
       const customerInfo = validationResponse[0].customer
-      if (customerInfo.status !== 'ENABLED') {
-        throw new Error(`Account ${customerId} is not enabled (status: ${customerInfo.status})`)
+      
+      // Handle both string and numeric status values from Google Ads API
+      // Status codes: 0 = UNKNOWN, 1 = ENABLED, 2 = SUSPENDED, 3 = CLOSED
+      const isEnabled = customerInfo.status === 'ENABLED' || customerInfo.status === 1
+      
+      if (!isEnabled) {
+        const statusText = typeof customerInfo.status === 'number' 
+          ? ['UNKNOWN', 'ENABLED', 'SUSPENDED', 'CLOSED'][customerInfo.status] || `UNKNOWN(${customerInfo.status})`
+          : customerInfo.status
+        throw new Error(`Account ${customerId} is not enabled (status: ${statusText})`)
       }
       
       console.log(`✅ Account validation passed: ${customerInfo.descriptive_name} (${customerId}) - Status: ${customerInfo.status}`)
