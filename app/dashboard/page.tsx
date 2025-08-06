@@ -322,27 +322,67 @@ export default function Dashboard() {
                       {mccAccounts.map((account) => (
                         <div
                           key={account.id}
-                          className="p-4 border rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
-                          onClick={() => handleMCCSelection(account.id)}
+                          className="p-4 border rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="font-medium">{account.name}</div>
-                            <div className="flex items-center space-x-1">
-                              <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">
-                                MCC
-                              </span>
-                              {account.testAccount && (
-                                <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">
-                                  Test
+                          <div
+                            className="cursor-pointer"
+                            onClick={() => handleMCCSelection(account.id)}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="font-medium">{account.name}</div>
+                              <div className="flex items-center space-x-1">
+                                <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">
+                                  MCC
                                 </span>
-                              )}
+                                {account.testAccount && (
+                                  <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">
+                                    Test
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              ID: {account.id}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Currency: {account.currency} • Timezone: {account.timeZone}
                             </div>
                           </div>
-                          <div className="text-sm text-gray-500">
-                            ID: {account.id}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Currency: {account.currency} • Timezone: {account.timeZone}
+                          
+                          {/* Quick Actions for this MCC */}
+                          <div className="mt-3 pt-3 border-t border-gray-200 flex gap-2">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const params = new URLSearchParams({
+                                  mccId: account.id,
+                                  mccName: account.name
+                                })
+                                window.open(`/suspended-accounts?${params.toString()}`, '_blank')
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-xs border-red-300 text-red-700 hover:bg-red-50"
+                            >
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Check Suspended
+                            </Button>
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const params = new URLSearchParams({
+                                  mccId: account.id,
+                                  mccName: account.name
+                                })
+                                window.open(`/unlink-accounts?${params.toString()}`, '_blank')
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-xs border-gray-300 text-gray-700 hover:bg-gray-50"
+                            >
+                              <Unlink className="h-3 w-3 mr-1" />
+                              Unlink All
+                            </Button>
                           </div>
                         </div>
                       ))}
@@ -400,30 +440,66 @@ export default function Dashboard() {
                       </Card>
                     </div>
 
-                    {/* Manual Account Loader */}
-                    <div className="col-span-1">
-                      <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-medium text-orange-900 mb-1">
-                                Manual Account Loader
-                              </h3>
-                              <p className="text-sm text-orange-700">
-                                Load specific account IDs to deploy campaigns manually (for pre-tracking dummy accounts)
-                              </p>
+                    {/* MCC Management Tools */}
+                    <div className="mt-6 pt-6 border-t">
+                      <h3 className="text-lg font-semibold mb-4 text-gray-800">MCC Management Tools</h3>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {/* Manual Account Loader */}
+                        <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-orange-900 mb-1">
+                                  Manual Account Loader
+                                </h4>
+                                <p className="text-sm text-orange-700">
+                                  Load specific account IDs to deploy campaigns manually (for pre-tracking dummy accounts)
+                                </p>
+                              </div>
+                              <Button
+                                onClick={() => setStep('manual-accounts')}
+                                variant="outline"
+                                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                              >
+                                <Target className="h-4 w-4 mr-2" />
+                                Load Accounts
+                              </Button>
                             </div>
-                            <Button
-                              onClick={() => setStep('manual-accounts')}
-                              variant="outline"
-                              className="border-orange-300 text-orange-700 hover:bg-orange-100"
-                            >
-                              <Target className="h-4 w-4 mr-2" />
-                              Load Accounts
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                          </CardContent>
+                        </Card>
+
+                        {/* Suspended Accounts Detection */}
+                        <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-red-900 mb-1">
+                                  Suspended Account Detection
+                                </h4>
+                                <p className="text-sm text-red-700">
+                                  Find and unlink suspended client accounts to clean up your MCC structure
+                                </p>
+                              </div>
+                              <Button
+                                onClick={() => {
+                                  const selectedMCCAccount = mccAccounts.find(acc => acc.id === selectedMCC)
+                                  const params = new URLSearchParams({
+                                    mccId: selectedMCC || (mccAccounts.length > 0 ? mccAccounts[0].id : ''),
+                                    ...(selectedMCCAccount && { mccName: selectedMCCAccount.name })
+                                  })
+                                  window.open(`/suspended-accounts?${params.toString()}`, '_blank')
+                                }}
+                                variant="outline"
+                                className="border-red-300 text-red-700 hover:bg-red-100"
+                                disabled={mccAccounts.length === 0}
+                              >
+                                <AlertCircle className="h-4 w-4 mr-2" />
+                                Detect Suspended
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
                     </div>
                   </>
                 ) : (
