@@ -28,6 +28,8 @@ export async function POST(
       descriptions: campaignData.descriptions?.length,
       keywords: campaignData.keywords?.length
     })
+    
+    console.log(`🔍 Debug: languageCode in API = '${campaignData.languageCode}'`)
 
     // Validate required fields
     if (!campaignData.name || !campaignData.finalUrl || !campaignData.adGroupName) {

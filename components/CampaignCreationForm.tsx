@@ -574,7 +574,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
 
             <div>
               <Label>Language</Label>
-              <Select onValueChange={(value) => setCampaignData(prev => ({ ...prev, languageCode: value }))}>
+              <Select value={campaignData.languageCode} onValueChange={(value) => setCampaignData(prev => ({ ...prev, languageCode: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select target language" />
                 </SelectTrigger>

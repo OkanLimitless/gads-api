@@ -885,6 +885,7 @@ export async function createCampaign(
     // Step 7: Add Language Targeting (if specified)
     if (campaignData.languageCode) {
       console.log('🗣️ Adding language targeting...')
+      console.log(`🔍 Debug: languageCode received = '${campaignData.languageCode}' (type: ${typeof campaignData.languageCode})`)
       
       // Comprehensive Google Ads API Language Constants Map
       // Based on official Google Ads API documentation
@@ -1013,6 +1014,8 @@ export async function createCampaign(
       }
 
       const languageConstantId = languageCriteriaMap[campaignData.languageCode]
+      console.log(`🔍 Debug: languageCode '${campaignData.languageCode}' mapped to constant ID: ${languageConstantId}`)
+      
       if (!languageConstantId) {
         console.warn(`⚠️  Unknown language '${campaignData.languageCode}', defaulting to English (1000).`)
         console.warn(`Available languages:`, Object.keys(languageCriteriaMap).filter(key => key.length <= 3).sort())
