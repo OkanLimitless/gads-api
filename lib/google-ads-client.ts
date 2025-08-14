@@ -1299,8 +1299,10 @@ export async function createCampaign(
         const constantId = languageConstant.split('/').pop()
         console.log(`🔧 Extracted constant ID: ${constantId}`)
         
-        if (constantId === '1019') {
-          console.log('✅ VERIFIED: Campaign is correctly targeting Dutch (1019)')
+        if (constantId === '1010') {
+          console.log('✅ VERIFIED: Campaign is correctly targeting Dutch (1010)')
+        } else if (constantId === '1019') {
+          console.log('❌ ERROR: Campaign is targeting Arabic (1019) instead of Dutch')
         } else if (constantId === '1006') {
           console.log('❌ ERROR: Campaign is targeting Arabic (1006) instead of Dutch')
         } else {

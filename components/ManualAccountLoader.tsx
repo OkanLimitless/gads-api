@@ -131,15 +131,15 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
 
   return (
     <div className="space-y-6">
-      {/* Testing Mode Warning */}
-      <Alert className="border-orange-200 bg-orange-50">
-        <AlertCircle className="h-4 w-4 text-orange-600" />
-        <AlertTitle className="text-orange-800">🧪 Testing Mode Enabled</AlertTitle>
-        <AlertDescription className="text-orange-700">
-          <strong>Temporary Override Active:</strong> All accessible accounts can be used for campaign creation, 
-          even those with existing campaigns. This is for testing the Dutch language fix.
+      {/* Manual Deployment Mode */}
+      <Alert className="border-blue-200 bg-blue-50">
+        <AlertCircle className="h-4 w-4 text-blue-600" />
+        <AlertTitle className="text-blue-800">🛠️ Manual Deployment Mode</AlertTitle>
+        <AlertDescription className="text-blue-700">
+          <strong>Enhanced Mode Active:</strong> All accessible accounts can be used for campaign creation, 
+          even those with existing campaigns. Perfect for manual campaign deployment and testing.
           <br />
-          <em className="text-sm">Remember to disable this override after testing!</em>
+          <em className="text-sm">This gives you full flexibility to deploy campaigns to any accessible account.</em>
         </AlertDescription>
       </Alert>
 

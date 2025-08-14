@@ -139,13 +139,13 @@ export async function POST(request: NextRequest) {
           hasRealCampaigns = false
         }
 
-        // 🚧 TEMPORARY TESTING OVERRIDE 🚧
-        // For testing the Dutch language fix, allow ANY account to be used
-        // regardless of existing campaigns. Remove this override after testing!
-        const TESTING_MODE = true
+        // 🛠️ MANUAL DEPLOYMENT MODE 🛠️
+        // Allow ANY accessible account to be used for campaign creation,
+        // regardless of existing campaigns. Useful for manual campaign deployment.
+        const TESTING_MODE = true // ✅ ENABLED - Manual campaign deployment tool
         
         if (TESTING_MODE) {
-          console.log(`🧪 TESTING MODE: Account ${accountId} forced to 'ready' status for testing`)
+          console.log(`🛠️ MANUAL DEPLOYMENT: Account ${accountId} forced to 'ready' status for manual campaign creation`)
           results.push({
             id: accountId,
             name: accountInfo.name || `Account ${accountId}`,
