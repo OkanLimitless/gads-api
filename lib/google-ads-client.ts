@@ -1250,6 +1250,45 @@ export async function createCampaign(
     }
 
     console.log('🎉 Campaign creation completed successfully!')
+    
+    // 🔍 VERIFICATION: Let's check what Google Ads actually has for language targeting
+    try {
+      console.log('🔍 Verifying campaign language targeting...')
+      const verificationQuery = `
+        SELECT 
+          campaign_criterion.resource_name,
+          campaign_criterion.language.language_constant,
+          campaign_criterion.status
+        FROM campaign_criterion 
+        WHERE campaign.id = ${campaignId}
+        AND campaign_criterion.type = 'LANGUAGE'
+      `
+      
+      const verificationResult = await customer.query(verificationQuery)
+      console.log('📋 Language targeting verification:', JSON.stringify(verificationResult, null, 2))
+      
+      if (verificationResult.length > 0) {
+        const languageConstant = verificationResult[0].campaign_criterion.language.language_constant
+        console.log(`🔧 Google Ads reports language constant: ${languageConstant}`)
+        
+        // Extract the constant ID from the resource name
+        const constantId = languageConstant.split('/').pop()
+        console.log(`🔧 Extracted constant ID: ${constantId}`)
+        
+        if (constantId === '1019') {
+          console.log('✅ VERIFIED: Campaign is correctly targeting Dutch (1019)')
+        } else if (constantId === '1006') {
+          console.log('❌ ERROR: Campaign is targeting Arabic (1006) instead of Dutch')
+        } else {
+          console.log(`⚠️ UNEXPECTED: Campaign is targeting language constant ${constantId}`)
+        }
+      } else {
+        console.log('⚠️ No language targeting found in verification query')
+      }
+    } catch (verificationError) {
+      console.error('💥 Error verifying language targeting:', verificationError)
+    }
+    
     return {
       success: true,
       campaignId,
