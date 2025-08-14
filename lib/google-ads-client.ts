@@ -1040,42 +1040,18 @@ export async function createCampaign(
         console.warn(`Available languages:`, Object.keys(LANGUAGE_CRITERIA_MAP).filter(key => key.length <= 3).sort())
       }
       
-      // 🔧 TESTING: Try using CampaignCriterionService directly instead of mutateResources
-      console.log(`🧪 ALTERNATIVE APPROACH: Using CampaignCriterionService directly`)
-      
-      let languageResponse
-      
-      try {
-        const campaignCriterionOperations = [{
-          create: {
-            campaign: campaignResourceName,
-            type: 'LANGUAGE',  // 🔧 EXPLICIT TYPE
-            language: {
-              language_constant: `languageConstants/${languageConstantId || 1000}`
-            },
-            status: 2  // ENABLED
+      const languageMutateOperations = [{
+        entity: "campaign_criterion",
+        operation: "create",
+        resource: {
+          campaign: campaignResourceName,
+          language: {
+            language_constant: `languageConstants/${languageConstantId || 1000}`
           }
-        }]
+        }
+      }]
 
-        languageResponse = await customer.campaignCriteria.mutate(campaignCriterionOperations)
-        console.log(`🧪 CampaignCriterionService response:`, JSON.stringify(languageResponse, null, 2))
-      } catch (directError) {
-        console.error(`💥 CampaignCriterionService failed, falling back to mutateResources:`, directError)
-        
-        // Fallback to original method
-        const languageMutateOperations = [{
-          entity: "campaign_criterion",
-          operation: "create",
-          resource: {
-            campaign: campaignResourceName,
-            language: {
-              language_constant: `languageConstants/${languageConstantId || 1000}`
-            }
-          }
-        }]
-
-        languageResponse = await customer.mutateResources(languageMutateOperations)
-      }
+      const languageResponse = await customer.mutateResources(languageMutateOperations)
       
       // Handle response format for language targeting
       let languageResults
