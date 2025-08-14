@@ -1013,8 +1013,12 @@ export async function createCampaign(
         'VI': 1045, 'VIETNAMESE': 1045
       }
 
-      const languageConstantId = languageCriteriaMap[campaignData.languageCode]
-      console.log(`🔍 Debug: languageCode '${campaignData.languageCode}' mapped to constant ID: ${languageConstantId}`)
+      const inputLanguageCode = String(campaignData.languageCode || '').trim()
+      const normalizedLanguageKey = inputLanguageCode.toLowerCase()
+      const languageConstantId = languageCriteriaMap[normalizedLanguageKey]
+        || languageCriteriaMap[inputLanguageCode]
+        || languageCriteriaMap[inputLanguageCode.toUpperCase()]
+      console.log(`🔍 Debug: languageCode '${campaignData.languageCode}' normalized to '${normalizedLanguageKey}' mapped to constant ID: ${languageConstantId}`)
       
       if (!languageConstantId) {
         console.warn(`⚠️  Unknown language '${campaignData.languageCode}', defaulting to English (1000).`)
@@ -1934,9 +1938,13 @@ export async function createDummyCampaign(
       }
       
       // Language constants: English = 1000, Dutch = 1019, Arabic = 1006, etc.
-      const languageConstantId = languageCriteriaMap[templateData.languageCode] || 1000
+      const inputLanguageCode = String(templateData.languageCode || '').trim()
+      const normalizedLanguageKey = inputLanguageCode.toLowerCase()
+      const languageConstantId = languageCriteriaMap[normalizedLanguageKey]
+        || languageCriteriaMap[inputLanguageCode]
+        || languageCriteriaMap[inputLanguageCode.toUpperCase()] || 1000
       
-      console.log(`🌐 Using language constant ${languageConstantId} for '${templateData.languageCode}'`)
+      console.log(`🌐 Using language constant ${languageConstantId} for '${templateData.languageCode}' (normalized: '${normalizedLanguageKey}')`)
       
       const languageOperations = [
         {
