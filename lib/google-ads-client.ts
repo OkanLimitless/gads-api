@@ -1026,6 +1026,15 @@ export async function createCampaign(
       const languageConstantId = getLanguageConstantId(normalizedLanguageKey, inputLanguageCode)
       console.log(`🔍 Debug: languageCode '${campaignData.languageCode}' normalized to '${normalizedLanguageKey}' mapped to constant ID: ${languageConstantId}`)
       
+      // Additional debugging - let's verify the mapping explicitly
+      console.log(`🧪 Testing language mappings:`)
+      console.log(`🧪 'nl' maps to: ${LANGUAGE_CRITERIA_MAP['nl']}`)
+      console.log(`🧪 'ar' maps to: ${LANGUAGE_CRITERIA_MAP['ar']}`)
+      console.log(`🧪 'en' maps to: ${LANGUAGE_CRITERIA_MAP['en']}`)
+      
+      // Verify the exact API call we're making
+      console.log(`🔧 API call will use: languageConstants/${languageConstantId || 1000}`)
+      
       if (!languageConstantId || languageConstantId === 1000) {
         console.warn(`⚠️  Language '${campaignData.languageCode}' ${languageConstantId ? 'defaulted to English' : 'not found, defaulting to English'} (1000).`)
         console.warn(`Available languages:`, Object.keys(LANGUAGE_CRITERIA_MAP).filter(key => key.length <= 3).sort())
@@ -1055,7 +1064,8 @@ export async function createCampaign(
         throw new Error('Failed to create language targeting - invalid API response')
       }
       
-      console.log(`✅ Added language targeting: ${campaignData.languageCode}`)
+      console.log(`✅ Added language targeting: ${campaignData.languageCode} (constant ID: ${languageConstantId})`)
+      console.log(`📋 Language targeting response:`, JSON.stringify(languageResponse, null, 2))
     }
 
     // Step 7: Add Device Targeting (Mobile Only)  

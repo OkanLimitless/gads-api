@@ -293,6 +293,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     setIsSubmitting(true)
     
     try {
+      console.log(`🔍 Frontend Debug: Sending languageCode = '${campaignData.languageCode}'`)
       const response = await fetch(`/api/campaigns/${selectedAccount.id}/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
