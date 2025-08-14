@@ -1312,23 +1312,55 @@ export async function createCampaign(
       
       // 🔍 EMERGENCY: Find the correct Dutch language constant
       console.log('🔍 EMERGENCY: Searching for the REAL Dutch language constant...')
-      const dutchSearchQuery = `
+      
+      // First search by code
+      const dutchByCodeQuery = `
         SELECT 
           language_constant.resource_name,
           language_constant.name,
           language_constant.code
         FROM language_constant 
-        WHERE language_constant.code = 'nl' OR language_constant.name LIKE '%Dutch%'
+        WHERE language_constant.code = 'nl'
       `
       
-      const dutchSearchResult = await customer.query(dutchSearchQuery)
-      console.log('📋 Dutch language search results:', JSON.stringify(dutchSearchResult, null, 2))
+      const dutchByCodeResult = await customer.query(dutchByCodeQuery)
+      console.log('📋 Dutch by code (nl) search results:', JSON.stringify(dutchByCodeResult, null, 2))
       
-      if (dutchSearchResult && dutchSearchResult.length > 0) {
-        const dutchConstant = dutchSearchResult[0].language_constant
+      if (dutchByCodeResult && dutchByCodeResult.length > 0) {
+        const dutchConstant = dutchByCodeResult[0].language_constant
         const correctId = dutchConstant.resource_name.split('/')[1]
         console.log(`🔧 FOUND THE REAL DUTCH CONSTANT: ${correctId} = "${dutchConstant?.name}" (${dutchConstant?.code})`)
         console.error(`🚨 OUR MAPPING IS WRONG! We used 1019 (Arabic) instead of ${correctId} (Dutch)`)
+      } else {
+        console.log('⚠️ No language found with code "nl", trying name search...')
+        
+        // Fallback: search a few likely constant IDs
+        const testIds = [1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1020, 1021]
+        console.log('🔍 Testing common language constant IDs to find Dutch...')
+        
+        for (const testId of testIds) {
+          try {
+            const testQuery = `
+              SELECT 
+                language_constant.resource_name,
+                language_constant.name,
+                language_constant.code
+              FROM language_constant 
+              WHERE language_constant.resource_name = 'languageConstants/${testId}'
+            `
+            const testResult = await customer.query(testQuery)
+            if (testResult && testResult.length > 0) {
+              const constant = testResult[0].language_constant
+              console.log(`🔍 ${testId}: "${constant.name}" (${constant.code})`)
+              if (constant.code === 'nl' || constant.name.toLowerCase().includes('dutch')) {
+                console.log(`🎯 FOUND DUTCH: ${testId} = "${constant.name}" (${constant.code})`)
+                break
+              }
+            }
+          } catch (e) {
+            // Skip invalid IDs
+          }
+        }
       }
       
     } catch (verificationError) {
