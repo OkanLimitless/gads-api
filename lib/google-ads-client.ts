@@ -994,40 +994,68 @@ export async function createCampaign(
           console.log('🔍 Searching for geo target constants for cities:', gpAutosCities.join(', '))
           
           try {
-            // Use the GeoTargetConstantService to find the cities
-            const geoTargetConstantServiceClient = googleAdsClient.getLatestVersion().createGeoTargetConstantServiceClient()
-            
-            const suggestionRequest = {
-              locale: 'nl', // Dutch locale
-              countryCode: 'NL', // Netherlands
-              locationNames: {
-                names: gpAutosCities
-              }
-            }
-            
-            const geoSuggestions = await geoTargetConstantServiceClient.suggestGeoTargetConstants(suggestionRequest)
-            console.log('📍 Found geo target suggestions:', JSON.stringify(geoSuggestions, null, 2))
+            // Query for geo target constants using GAQL directly
+            console.log('🔍 Querying geo target constants for GP Autos cities...')
             
             const gpAutosOperations = []
-            for (const suggestion of geoSuggestions.geoTargetConstantSuggestions || []) {
-              if (suggestion.geoTargetConstant?.resourceName) {
-                const geoId = suggestion.geoTargetConstant.resourceName.split('/')[1]
-                console.log(`✅ Found ${suggestion.searchTerm}: ${geoId} (${suggestion.geoTargetConstant.name})`)
-                gpAutosOperations.push({
-                  entity: "campaign_criterion",
-                  operation: "create",
-                  resource: {
-                    campaign: campaignResourceName,
-                    location: {
-                      geo_target_constant: `geoTargetConstants/${geoId}`
+            
+            // Search for each city using geo target constant queries
+            for (const cityName of gpAutosCities) {
+              try {
+                const geoQuery = `
+                  SELECT 
+                    geo_target_constant.resource_name,
+                    geo_target_constant.name,
+                    geo_target_constant.country_code,
+                    geo_target_constant.target_type
+                  FROM geo_target_constant 
+                  WHERE geo_target_constant.name LIKE '%${cityName}%' 
+                  AND geo_target_constant.country_code = 'NL'
+                  AND geo_target_constant.status = 'ENABLED'
+                `
+                
+                const geoResults = await customer.query(geoQuery)
+                
+                if (geoResults && geoResults.length > 0) {
+                  // Take the first matching result
+                  const geoConstant = geoResults[0].geo_target_constant
+                  const geoId = geoConstant.resource_name.split('/')[1]
+                  console.log(`✅ Found ${cityName}: ${geoId} (${geoConstant.name})`)
+                  
+                  gpAutosOperations.push({
+                    entity: "campaign_criterion",
+                    operation: "create",
+                    resource: {
+                      campaign: campaignResourceName,
+                      location: {
+                        geo_target_constant: `geoTargetConstants/${geoId}`
+                      }
                     }
-                  }
-                })
+                  })
+                } else {
+                  console.warn(`⚠️  Could not find geo target for city: ${cityName}`)
+                }
+              } catch (cityError) {
+                console.warn(`⚠️  Error querying geo target for ${cityName}:`, cityError.message)
               }
             }
             
-            locationMutateOperations.push(...gpAutosOperations)
-            console.log(`✅ Added ${gpAutosOperations.length} GP Autos city targets`)
+            if (gpAutosOperations.length > 0) {
+              locationMutateOperations.push(...gpAutosOperations)
+              console.log(`✅ Added ${gpAutosOperations.length} GP Autos city targets`)
+            } else {
+              console.warn('⚠️  No cities found, falling back to Netherlands-wide targeting')
+              locationMutateOperations.push({
+                entity: "campaign_criterion",
+                operation: "create",
+                resource: {
+                  campaign: campaignResourceName,
+                  location: {
+                    geo_target_constant: `geoTargetConstants/2528` // Netherlands
+                  }
+                }
+              })
+            }
             
           } catch (geoError) {
             console.error('💥 Error getting GP Autos geo targets:', geoError)
