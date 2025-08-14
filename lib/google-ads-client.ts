@@ -964,6 +964,13 @@ export async function createCampaign(
         'VA': 21178  // Virginia
       }
 
+      // GP Autos targeting - specific Dutch cities
+      // These will be determined dynamically via Google Ads API query
+      const gpAutosCities = [
+        'Bredevoort', 'Aalten', 'Groenlo', 'Lievelde', 'Zieuwent', 
+        'Vragender', 'Harreveld', 'Winterswijk', 'Lichtenvoorde', 'Varsseveld'
+      ]
+
       let locationMutateOperations = []
 
       for (const location of campaignData.locations) {
@@ -981,6 +988,62 @@ export async function createCampaign(
             }
           }))
           locationMutateOperations.push(...terminixOperations)
+        } else if (location === 'GP_AUTOS') {
+          // Add GP Autos cities - we need to query Google Ads API to get the geo target constants
+          console.log('🏢 Adding GP Autos targeting (10 Dutch cities)...')
+          console.log('🔍 Searching for geo target constants for cities:', gpAutosCities.join(', '))
+          
+          try {
+            // Use the GeoTargetConstantService to find the cities
+            const geoTargetConstantServiceClient = googleAdsClient.getLatestVersion().createGeoTargetConstantServiceClient()
+            
+            const suggestionRequest = {
+              locale: 'nl', // Dutch locale
+              countryCode: 'NL', // Netherlands
+              locationNames: {
+                names: gpAutosCities
+              }
+            }
+            
+            const geoSuggestions = await geoTargetConstantServiceClient.suggestGeoTargetConstants(suggestionRequest)
+            console.log('📍 Found geo target suggestions:', JSON.stringify(geoSuggestions, null, 2))
+            
+            const gpAutosOperations = []
+            for (const suggestion of geoSuggestions.geoTargetConstantSuggestions || []) {
+              if (suggestion.geoTargetConstant?.resourceName) {
+                const geoId = suggestion.geoTargetConstant.resourceName.split('/')[1]
+                console.log(`✅ Found ${suggestion.searchTerm}: ${geoId} (${suggestion.geoTargetConstant.name})`)
+                gpAutosOperations.push({
+                  entity: "campaign_criterion",
+                  operation: "create",
+                  resource: {
+                    campaign: campaignResourceName,
+                    location: {
+                      geo_target_constant: `geoTargetConstants/${geoId}`
+                    }
+                  }
+                })
+              }
+            }
+            
+            locationMutateOperations.push(...gpAutosOperations)
+            console.log(`✅ Added ${gpAutosOperations.length} GP Autos city targets`)
+            
+          } catch (geoError) {
+            console.error('💥 Error getting GP Autos geo targets:', geoError)
+            console.warn('⚠️  Falling back to Netherlands-wide targeting for GP Autos')
+            // Fallback to Netherlands if city lookup fails
+            locationMutateOperations.push({
+              entity: "campaign_criterion",
+              operation: "create",
+              resource: {
+                campaign: campaignResourceName,
+                location: {
+                  geo_target_constant: `geoTargetConstants/2528` // Netherlands
+                }
+              }
+            })
+          }
         } else {
           // Regular country targeting
           const geoTargetId = locationCriteriaMap[location]

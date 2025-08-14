@@ -568,6 +568,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   <SelectItem value="DE">Germany</SelectItem>
                   <SelectItem value="FR">France</SelectItem>
                   <SelectItem value="NL">Netherlands</SelectItem>
+                  <SelectItem value="GP_AUTOS">GP Autos (10 Dutch Cities)</SelectItem>
                 </SelectContent>
               </Select>
               {errors.locations && <p className="text-sm text-red-500 mt-1">{errors.locations}</p>}
