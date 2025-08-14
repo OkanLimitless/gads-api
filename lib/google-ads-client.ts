@@ -1309,6 +1309,32 @@ export async function createCampaign(
       } else {
         console.log('⚠️ No language targeting found in verification query')
       }
+      
+      // 🔍 ADDITIONAL: Query the language constant directly to see what Google thinks 1019 is
+      console.log('🔍 Double-checking what language constant 1019 represents...')
+      const languageConstantQuery = `
+        SELECT 
+          language_constant.resource_name,
+          language_constant.name,
+          language_constant.code
+        FROM language_constant 
+        WHERE language_constant.resource_name = 'languageConstants/1019'
+      `
+      
+      const languageConstantResult = await customer.query(languageConstantQuery)
+      console.log('📋 Language constant 1019 details:', JSON.stringify(languageConstantResult, null, 2))
+      
+      if (languageConstantResult && languageConstantResult.length > 0) {
+        const constant = languageConstantResult[0].language_constant
+        console.log(`🔧 Google says 1019 = Name: "${constant?.name}", Code: "${constant?.code}"`)
+        
+        if (constant?.name !== 'Dutch' && constant?.code !== 'nl') {
+          console.error(`🚨 CRITICAL: Language constant 1019 is NOT Dutch! It's "${constant?.name}" (${constant?.code})`)
+        } else {
+          console.log(`✅ CONFIRMED: Language constant 1019 is indeed Dutch`)
+        }
+      }
+      
     } catch (verificationError) {
       console.error('💥 Error verifying language targeting:', verificationError)
     }
