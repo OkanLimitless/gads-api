@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Trash2, Target, AlertCircle, CheckCircle, Building2, ArrowLeft } from 'lucide-react'
 import CampaignCreationForm from './CampaignCreationForm'
@@ -131,6 +131,18 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
 
   return (
     <div className="space-y-6">
+      {/* Testing Mode Warning */}
+      <Alert className="border-orange-200 bg-orange-50">
+        <AlertCircle className="h-4 w-4 text-orange-600" />
+        <AlertTitle className="text-orange-800">🧪 Testing Mode Enabled</AlertTitle>
+        <AlertDescription className="text-orange-700">
+          <strong>Temporary Override Active:</strong> All accessible accounts can be used for campaign creation, 
+          even those with existing campaigns. This is for testing the Dutch language fix.
+          <br />
+          <em className="text-sm">Remember to disable this override after testing!</em>
+        </AlertDescription>
+      </Alert>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

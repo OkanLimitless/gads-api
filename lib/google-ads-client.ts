@@ -7,6 +7,140 @@ const googleAdsClient = new GoogleAdsApi({
   developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
 })
 
+// Comprehensive Google Ads API Language Constants Map
+// Based on official Google Ads API documentation
+const LANGUAGE_CRITERIA_MAP: Record<string, number> = {
+  // Primary language codes (lowercase)
+  'ar': 1006, // Arabic
+  'bg': 1020, // Bulgarian
+  'ca': 1021, // Catalan
+  'zh': 1017, // Chinese (Simplified)
+  'zh-cn': 1017, // Chinese (Simplified)
+  'zh-tw': 1018, // Chinese (Traditional)
+  'hr': 1022, // Croatian
+  'cs': 1023, // Czech
+  'da': 1009, // Danish
+  'nl': 1019, // Dutch
+  'en': 1000, // English
+  'et': 1043, // Estonian
+  'fi': 1015, // Finnish
+  'fr': 1002, // French
+  'de': 1001, // German
+  'el': 1025, // Greek
+  'he': 1027, // Hebrew
+  'hi': 1028, // Hindi
+  'hu': 1029, // Hungarian
+  'id': 1030, // Indonesian
+  'it': 1004, // Italian
+  'ja': 1005, // Japanese
+  'ko': 1012, // Korean
+  'lv': 1042, // Latvian
+  'lt': 1041, // Lithuanian
+  'ms': 1040, // Malay
+  'no': 1013, // Norwegian
+  'pl': 1016, // Polish
+  'pt': 1014, // Portuguese
+  'ro': 1032, // Romanian
+  'ru': 1007, // Russian
+  'sr': 1035, // Serbian
+  'sk': 1036, // Slovak
+  'sl': 1037, // Slovenian
+  'es': 1003, // Spanish
+  'sv': 1008, // Swedish
+  'th': 1038, // Thai
+  'tr': 1039, // Turkish
+  'uk': 1044, // Ukrainian
+  'vi': 1045, // Vietnamese
+
+  // Full language names (lowercase)
+  'arabic': 1006,
+  'bulgarian': 1020,
+  'catalan': 1021,
+  'chinese': 1017,
+  'croatian': 1022,
+  'czech': 1023,
+  'danish': 1009,
+  'dutch': 1019,
+  'english': 1000,
+  'estonian': 1043,
+  'finnish': 1015,
+  'french': 1002,
+  'german': 1001,
+  'greek': 1025,
+  'hebrew': 1027,
+  'hindi': 1028,
+  'hungarian': 1029,
+  'indonesian': 1030,
+  'italian': 1004,
+  'japanese': 1005,
+  'korean': 1012,
+  'latvian': 1042,
+  'lithuanian': 1041,
+  'malay': 1040,
+  'norwegian': 1013,
+  'polish': 1016,
+  'portuguese': 1014,
+  'romanian': 1032,
+  'russian': 1007,
+  'serbian': 1035,
+  'slovak': 1036,
+  'slovenian': 1037,
+  'spanish': 1003,
+  'swedish': 1008,
+  'thai': 1038,
+  'turkish': 1039,
+  'ukrainian': 1044,
+  'vietnamese': 1045,
+
+  // Uppercase variants for compatibility
+  'AR': 1006, 'ARABIC': 1006,
+  'BG': 1020, 'BULGARIAN': 1020,
+  'CA': 1021, 'CATALAN': 1021,
+  'ZH': 1017, 'CHINESE': 1017,
+  'HR': 1022, 'CROATIAN': 1022,
+  'CS': 1023, 'CZECH': 1023,
+  'DA': 1009, 'DANISH': 1009,
+  'NL': 1019, 'DUTCH': 1019,
+  'EN': 1000, 'ENGLISH': 1000,
+  'ET': 1043, 'ESTONIAN': 1043,
+  'FI': 1015, 'FINNISH': 1015,
+  'FR': 1002, 'FRENCH': 1002,
+  'DE': 1001, 'GERMAN': 1001,
+  'EL': 1025, 'GREEK': 1025,
+  'HE': 1027, 'HEBREW': 1027,
+  'HI': 1028, 'HINDI': 1028,
+  'HU': 1029, 'HUNGARIAN': 1029,
+  'ID': 1030, 'INDONESIAN': 1030,
+  'IT': 1004, 'ITALIAN': 1004,
+  'JA': 1005, 'JAPANESE': 1005,
+  'KO': 1012, 'KOREAN': 1012,
+  'LV': 1042, 'LATVIAN': 1042,
+  'LT': 1041, 'LITHUANIAN': 1041,
+  'MS': 1040, 'MALAY': 1040,
+  'NO': 1013, 'NORWEGIAN': 1013,
+  'PL': 1016, 'POLISH': 1016,
+  'PT': 1014, 'PORTUGUESE': 1014,
+  'RO': 1032, 'ROMANIAN': 1032,
+  'RU': 1007, 'RUSSIAN': 1007,
+  'SR': 1035, 'SERBIAN': 1035,
+  'SK': 1036, 'SLOVAK': 1036,
+  'SL': 1037, 'SLOVENIAN': 1037,
+  'ES': 1003, 'SPANISH': 1003,
+  'SV': 1008, 'SWEDISH': 1008,
+  'TH': 1038, 'THAI': 1038,
+  'TR': 1039, 'TURKISH': 1039,
+  'UK': 1044, 'UKRAINIAN': 1044,
+  'VI': 1045, 'VIETNAMESE': 1045
+}
+
+// Helper function to get language constant ID with consistent logic
+function getLanguageConstantId(normalizedLanguageKey: string, inputLanguageCode: string): number {
+  return LANGUAGE_CRITERIA_MAP[normalizedLanguageKey]
+    || LANGUAGE_CRITERIA_MAP[inputLanguageCode]
+    || LANGUAGE_CRITERIA_MAP[inputLanguageCode.toUpperCase()]
+    || 1000 // Default to English if language not found
+}
+
 export interface AdAccount {
   id: string
   name: string
@@ -887,142 +1021,14 @@ export async function createCampaign(
       console.log('🗣️ Adding language targeting...')
       console.log(`🔍 Debug: languageCode received = '${campaignData.languageCode}' (type: ${typeof campaignData.languageCode})`)
       
-      // Comprehensive Google Ads API Language Constants Map
-      // Based on official Google Ads API documentation
-      const languageCriteriaMap: Record<string, number> = {
-        // Primary language codes (lowercase)
-        'ar': 1006, // Arabic
-        'bg': 1020, // Bulgarian
-        'ca': 1021, // Catalan
-        'zh': 1017, // Chinese (Simplified)
-        'zh-cn': 1017, // Chinese (Simplified)
-        'zh-tw': 1018, // Chinese (Traditional)
-        'hr': 1022, // Croatian
-        'cs': 1023, // Czech
-        'da': 1009, // Danish
-        'nl': 1019, // Dutch
-        'en': 1000, // English
-        'et': 1043, // Estonian
-        'fi': 1015, // Finnish
-        'fr': 1002, // French
-        'de': 1001, // German
-        'el': 1025, // Greek
-        'he': 1027, // Hebrew
-        'hi': 1028, // Hindi
-        'hu': 1029, // Hungarian
-        'id': 1030, // Indonesian
-        'it': 1004, // Italian
-        'ja': 1005, // Japanese
-        'ko': 1012, // Korean
-        'lv': 1042, // Latvian
-        'lt': 1041, // Lithuanian
-        'ms': 1040, // Malay
-        'no': 1013, // Norwegian
-        'pl': 1016, // Polish
-        'pt': 1014, // Portuguese
-        'ro': 1032, // Romanian
-        'ru': 1007, // Russian
-        'sr': 1035, // Serbian
-        'sk': 1036, // Slovak
-        'sl': 1037, // Slovenian
-        'es': 1003, // Spanish
-        'sv': 1008, // Swedish
-        'th': 1038, // Thai
-        'tr': 1039, // Turkish
-        'uk': 1044, // Ukrainian
-        'vi': 1045, // Vietnamese
-
-        // Full language names (lowercase)
-        'arabic': 1006,
-        'bulgarian': 1020,
-        'catalan': 1021,
-        'chinese': 1017,
-        'croatian': 1022,
-        'czech': 1023,
-        'danish': 1009,
-        'dutch': 1019,
-        'english': 1000,
-        'estonian': 1043,
-        'finnish': 1015,
-        'french': 1002,
-        'german': 1001,
-        'greek': 1025,
-        'hebrew': 1027,
-        'hindi': 1028,
-        'hungarian': 1029,
-        'indonesian': 1030,
-        'italian': 1004,
-        'japanese': 1005,
-        'korean': 1012,
-        'latvian': 1042,
-        'lithuanian': 1041,
-        'malay': 1040,
-        'norwegian': 1013,
-        'polish': 1016,
-        'portuguese': 1014,
-        'romanian': 1032,
-        'russian': 1007,
-        'serbian': 1035,
-        'slovak': 1036,
-        'slovenian': 1037,
-        'spanish': 1003,
-        'swedish': 1008,
-        'thai': 1038,
-        'turkish': 1039,
-        'ukrainian': 1044,
-        'vietnamese': 1045,
-
-        // Uppercase variants for compatibility
-        'AR': 1006, 'ARABIC': 1006,
-        'BG': 1020, 'BULGARIAN': 1020,
-        'CA': 1021, 'CATALAN': 1021,
-        'ZH': 1017, 'CHINESE': 1017,
-        'HR': 1022, 'CROATIAN': 1022,
-        'CS': 1023, 'CZECH': 1023,
-        'DA': 1009, 'DANISH': 1009,
-        'NL': 1019, 'DUTCH': 1019,
-        'EN': 1000, 'ENGLISH': 1000,
-        'ET': 1043, 'ESTONIAN': 1043,
-        'FI': 1015, 'FINNISH': 1015,
-        'FR': 1002, 'FRENCH': 1002,
-        'DE': 1001, 'GERMAN': 1001,
-        'EL': 1025, 'GREEK': 1025,
-        'HE': 1027, 'HEBREW': 1027,
-        'HI': 1028, 'HINDI': 1028,
-        'HU': 1029, 'HUNGARIAN': 1029,
-        'ID': 1030, 'INDONESIAN': 1030,
-        'IT': 1004, 'ITALIAN': 1004,
-        'JA': 1005, 'JAPANESE': 1005,
-        'KO': 1012, 'KOREAN': 1012,
-        'LV': 1042, 'LATVIAN': 1042,
-        'LT': 1041, 'LITHUANIAN': 1041,
-        'MS': 1040, 'MALAY': 1040,
-        'NO': 1013, 'NORWEGIAN': 1013,
-        'PL': 1016, 'POLISH': 1016,
-        'PT': 1014, 'PORTUGUESE': 1014,
-        'RO': 1032, 'ROMANIAN': 1032,
-        'RU': 1007, 'RUSSIAN': 1007,
-        'SR': 1035, 'SERBIAN': 1035,
-        'SK': 1036, 'SLOVAK': 1036,
-        'SL': 1037, 'SLOVENIAN': 1037,
-        'ES': 1003, 'SPANISH': 1003,
-        'SV': 1008, 'SWEDISH': 1008,
-        'TH': 1038, 'THAI': 1038,
-        'TR': 1039, 'TURKISH': 1039,
-        'UK': 1044, 'UKRAINIAN': 1044,
-        'VI': 1045, 'VIETNAMESE': 1045
-      }
-
       const inputLanguageCode = String(campaignData.languageCode || '').trim()
       const normalizedLanguageKey = inputLanguageCode.toLowerCase()
-      const languageConstantId = languageCriteriaMap[normalizedLanguageKey]
-        || languageCriteriaMap[inputLanguageCode]
-        || languageCriteriaMap[inputLanguageCode.toUpperCase()]
+      const languageConstantId = getLanguageConstantId(normalizedLanguageKey, inputLanguageCode)
       console.log(`🔍 Debug: languageCode '${campaignData.languageCode}' normalized to '${normalizedLanguageKey}' mapped to constant ID: ${languageConstantId}`)
       
-      if (!languageConstantId) {
-        console.warn(`⚠️  Unknown language '${campaignData.languageCode}', defaulting to English (1000).`)
-        console.warn(`Available languages:`, Object.keys(languageCriteriaMap).filter(key => key.length <= 3).sort())
+      if (!languageConstantId || languageConstantId === 1000) {
+        console.warn(`⚠️  Language '${campaignData.languageCode}' ${languageConstantId ? 'defaulted to English' : 'not found, defaulting to English'} (1000).`)
+        console.warn(`Available languages:`, Object.keys(LANGUAGE_CRITERIA_MAP).filter(key => key.length <= 3).sort())
       }
       
       const languageMutateOperations = [{
@@ -1883,68 +1889,16 @@ export async function createDummyCampaign(
     if (templateData.languageCode) {
       console.log('🗣️ Adding language targeting...')
       
-      // Use the same comprehensive language constants map
-      const languageCriteriaMap: Record<string, number> = {
-        // Primary language codes (lowercase)
-        'ar': 1006, // Arabic
-        'bg': 1020, // Bulgarian
-        'ca': 1021, // Catalan
-        'zh': 1017, // Chinese (Simplified)
-        'zh-cn': 1017, // Chinese (Simplified)
-        'zh-tw': 1018, // Chinese (Traditional)
-        'hr': 1022, // Croatian
-        'cs': 1023, // Czech
-        'da': 1009, // Danish
-        'nl': 1019, // Dutch
-        'en': 1000, // English
-        'et': 1043, // Estonian
-        'fi': 1015, // Finnish
-        'fr': 1002, // French
-        'de': 1001, // German
-        'el': 1025, // Greek
-        'he': 1027, // Hebrew
-        'hi': 1028, // Hindi
-        'hu': 1029, // Hungarian
-        'id': 1030, // Indonesian
-        'it': 1004, // Italian
-        'ja': 1005, // Japanese
-        'ko': 1012, // Korean
-        'lv': 1042, // Latvian
-        'lt': 1041, // Lithuanian
-        'ms': 1040, // Malay
-        'no': 1013, // Norwegian
-        'pl': 1016, // Polish
-        'pt': 1014, // Portuguese
-        'ro': 1032, // Romanian
-        'ru': 1007, // Russian
-        'sr': 1035, // Serbian
-        'sk': 1036, // Slovak
-        'sl': 1037, // Slovenian
-        'es': 1003, // Spanish
-        'sv': 1008, // Swedish
-        'th': 1038, // Thai
-        'tr': 1039, // Turkish
-        'uk': 1044, // Ukrainian
-        'vi': 1045, // Vietnamese
-
-        // Full language names and uppercase variants
-        'arabic': 1006, 'ARABIC': 1006, 'AR': 1006,
-        'dutch': 1019, 'DUTCH': 1019, 'NL': 1019,
-        'english': 1000, 'ENGLISH': 1000, 'EN': 1000,
-        'french': 1002, 'FRENCH': 1002, 'FR': 1002,
-        'german': 1001, 'GERMAN': 1001, 'DE': 1001,
-        'italian': 1004, 'ITALIAN': 1004, 'IT': 1004,
-        'spanish': 1003, 'SPANISH': 1003, 'ES': 1003
-      }
-      
-      // Language constants: English = 1000, Dutch = 1019, Arabic = 1006, etc.
       const inputLanguageCode = String(templateData.languageCode || '').trim()
       const normalizedLanguageKey = inputLanguageCode.toLowerCase()
-      const languageConstantId = languageCriteriaMap[normalizedLanguageKey]
-        || languageCriteriaMap[inputLanguageCode]
-        || languageCriteriaMap[inputLanguageCode.toUpperCase()] || 1000
+      const languageConstantId = getLanguageConstantId(normalizedLanguageKey, inputLanguageCode)
       
       console.log(`🌐 Using language constant ${languageConstantId} for '${templateData.languageCode}' (normalized: '${normalizedLanguageKey}')`)
+      
+      if (!languageConstantId || languageConstantId === 1000) {
+        console.warn(`⚠️  Language '${templateData.languageCode}' ${languageConstantId ? 'defaulted to English' : 'not found, defaulting to English'} (1000).`)
+        console.warn(`Available languages:`, Object.keys(LANGUAGE_CRITERIA_MAP).filter(key => key.length <= 3).sort())
+      }
       
       const languageOperations = [
         {

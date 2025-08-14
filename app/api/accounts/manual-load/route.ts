@@ -139,7 +139,23 @@ export async function POST(request: NextRequest) {
           hasRealCampaigns = false
         }
 
-        if (hasRealCampaigns) {
+        // 🚧 TEMPORARY TESTING OVERRIDE 🚧
+        // For testing the Dutch language fix, allow ANY account to be used
+        // regardless of existing campaigns. Remove this override after testing!
+        const TESTING_MODE = true
+        
+        if (TESTING_MODE) {
+          console.log(`🧪 TESTING MODE: Account ${accountId} forced to 'ready' status for testing`)
+          results.push({
+            id: accountId,
+            name: accountInfo.name || `Account ${accountId}`,
+            status: 'ready',
+            hasRealCampaigns: hasRealCampaigns,
+            error: hasRealCampaigns 
+              ? `⚠️ TESTING: Has ${realCampaignCount} real campaign${realCampaignCount !== 1 ? 's' : ''} (normally would be blocked)`
+              : (dummyCampaignCount > 0 ? `${dummyCampaignCount} dummy campaign${dummyCampaignCount !== 1 ? 's' : ''} detected (ignored)` : undefined)
+          })
+        } else if (hasRealCampaigns) {
           console.log(`❌ Account ${accountId}: Has ${realCampaignCount} real campaigns - marked as deployed`)
           results.push({
             id: accountId,
@@ -175,6 +191,7 @@ export async function POST(request: NextRequest) {
     const errorCount = results.filter(r => r.status === 'error').length
 
     console.log(`✅ Manual account validation complete: ${readyCount} ready, ${deployedCount} deployed, ${errorCount} errors`)
+    console.log(`🧪 TESTING MODE ENABLED: All accessible accounts are marked as 'ready' for campaign creation testing`)
 
     return NextResponse.json({
       success: true,
