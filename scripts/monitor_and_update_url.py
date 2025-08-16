@@ -15,7 +15,7 @@ from scripts.google_ads_utils import load_google_ads_client
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Monitor ad approval and update Final URL when approved.")
     parser.add_argument("--customer_id", required=True, help="Google Ads customer ID (no dashes)")
-    parser.add_argument("--new_url", required=True, help="New Final URL to set for approved ads (same domain only)")
+    parser.add_argument("--new_url", required=True, help="New Final URL to set for approved ads")
     parser.add_argument(
         "--records_json",
         default=os.path.join("/workspace", "data", "created_ads.json"),
@@ -107,18 +107,6 @@ def main() -> None:
                 approval_status = info["policy_approval_status"]
                 approved_enum = client.enums.PolicyApprovalStatusEnum.PolicyApprovalStatus.APPROVED
                 if approval_status == approved_enum:
-                    current_urls = info.get("final_urls") or []
-                    if current_urls and not same_domain(current_urls[0], args.new_url):
-                        print(json.dumps({
-                            "ok": False,
-                            "resource": rn,
-                            "skipped": True,
-                            "reason": "Cross-domain change not allowed",
-                            "current_url": current_urls[0],
-                            "requested_url": args.new_url,
-                        }))
-                        approved.add(rn)
-                        continue
                     updated_rn = update_final_urls(client, args.customer_id, rn, args.new_url)
                     print(json.dumps({"ok": True, "updated": updated_rn, "new_url": args.new_url, "at": datetime.now(timezone.utc).isoformat()}))
                     approved.add(rn)

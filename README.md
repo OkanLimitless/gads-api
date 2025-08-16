@@ -194,7 +194,7 @@ Visit [http://localhost:3000](http://localhost:3000)
 
 ## Google Ads scripts (compliant)
 
-These scripts create an ad group and a responsive search ad, then monitor policy approval and optionally update the ad's Final URL within the same domain.
+These scripts create an ad group and a responsive search ad, then monitor policy approval and optionally update the ad's Final URL to a specified new URL.
 
 Important: Do not attempt to bypass platform review. Always use landing pages you own and that comply with policies. URL updates, even within the same domain, may trigger re-review.
 
@@ -225,7 +225,7 @@ python3 scripts/create_ad_group_and_ad.py \
 ```
 This writes created resource names to `data/created_ads.json`.
 
-### Monitor approval and update Final URL (same-domain only)
+### Monitor approval and update Final URL
 ```bash
 python3 scripts/monitor_and_update_url.py \
   --customer_id 1234567890 \
@@ -233,7 +233,7 @@ python3 scripts/monitor_and_update_url.py \
   --poll_interval_secs 60 \
   --timeout_secs 3600
 ```
-- Cross-domain URL changes are not supported by this tool.
+- Cross-domain URL changes are supported; ensure your URLs remain policy-compliant.
 
 ### Notes
 - Always ensure your Final URLs are policy-compliant and owned/authorized by you.

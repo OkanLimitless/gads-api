@@ -746,7 +746,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
                   className={errors.autoSwapNewUrl ? 'border-red-500' : ''}
                 />
                 {errors.autoSwapNewUrl && <p className="text-sm text-red-500 mt-1">{errors.autoSwapNewUrl}</p>}
-                <p className="text-xs text-gray-500 mt-1">Must be the same domain as the Final URL. The system will update only the ad.final_urls field post-approval.</p>
+                <p className="text-xs text-gray-500 mt-1">Any valid URL is allowed. The system will update only the ad.final_urls field post-approval.</p>
               </div>
             )}
 

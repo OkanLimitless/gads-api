@@ -1617,16 +1617,6 @@ export async function monitorAndUpdateFinalUrl(
     const timeoutSecs = options?.timeoutSecs ?? 1800
     const startedAt = Date.now()
 
-    const sameDomain = (a: string, b: string): boolean => {
-      try {
-        const ha = new URL(a).hostname
-        const hb = new URL(b).hostname
-        return ha === hb
-      } catch {
-        return false
-      }
-    }
-
     while (true) {
       const query = `
         SELECT 
@@ -1653,14 +1643,6 @@ export async function monitorAndUpdateFinalUrl(
         const currentUrls: string[] = row.ad_group_ad?.ad?.final_urls || []
 
         if (approvalStatus === 'APPROVED') {
-          if (currentUrls.length > 0 && !sameDomain(currentUrls[0], newFinalUrl)) {
-            console.warn('monitorAndUpdateFinalUrl: cross-domain change blocked', {
-              currentUrl: currentUrls[0],
-              requestedUrl: newFinalUrl,
-            })
-            return
-          }
-
           if (!resourceName) {
             console.error('monitorAndUpdateFinalUrl: missing ad_group_ad resource name')
             return
