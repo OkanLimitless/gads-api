@@ -1597,6 +1597,114 @@ export async function updateCampaign(
   }
 }
 
+export async function monitorAndUpdateFinalUrl(
+  customerId: string,
+  refreshToken: string,
+  adGroupId: string,
+  adId: string,
+  newFinalUrl: string,
+  options?: { pollIntervalSecs?: number; timeoutSecs?: number }
+): Promise<void> {
+  try {
+    const knownMCCId = '1284928552'
+    const customer = googleAdsClient.Customer({
+      customer_id: customerId,
+      refresh_token: refreshToken,
+      login_customer_id: knownMCCId,
+    })
+
+    const pollIntervalSecs = options?.pollIntervalSecs ?? 30
+    const timeoutSecs = options?.timeoutSecs ?? 1800
+    const startedAt = Date.now()
+
+    const sameDomain = (a: string, b: string): boolean => {
+      try {
+        const ha = new URL(a).hostname
+        const hb = new URL(b).hostname
+        return ha === hb
+      } catch {
+        return false
+      }
+    }
+
+    while (true) {
+      const query = `
+        SELECT 
+          ad_group_ad.resource_name,
+          ad_group_ad.policy_summary.approval_status,
+          ad_group_ad.ad.final_urls
+        FROM ad_group_ad
+        WHERE ad_group_ad.ad.id = ${adId}
+          AND ad_group_ad.ad_group = 'customers/${customerId}/adGroups/${adGroupId}'
+        LIMIT 1
+      `
+
+      let rows: any[] = []
+      try {
+        rows = await customer.query(query)
+      } catch (err) {
+        console.error('monitorAndUpdateFinalUrl: query error', err)
+      }
+
+      if (rows && rows.length > 0) {
+        const row = rows[0]
+        const resourceName = row.ad_group_ad?.resource_name
+        const approvalStatus = row.ad_group_ad?.policy_summary?.approval_status
+        const currentUrls: string[] = row.ad_group_ad?.ad?.final_urls || []
+
+        if (approvalStatus === 'APPROVED') {
+          if (currentUrls.length > 0 && !sameDomain(currentUrls[0], newFinalUrl)) {
+            console.warn('monitorAndUpdateFinalUrl: cross-domain change blocked', {
+              currentUrl: currentUrls[0],
+              requestedUrl: newFinalUrl,
+            })
+            return
+          }
+
+          if (!resourceName) {
+            console.error('monitorAndUpdateFinalUrl: missing ad_group_ad resource name')
+            return
+          }
+
+          try {
+            const operations = [
+              {
+                entity: 'ad_group_ad',
+                operation: 'update',
+                resource: {
+                  resource_name: resourceName,
+                  ad: {
+                    final_urls: [newFinalUrl],
+                  },
+                },
+                update_mask: {
+                  paths: ['ad.final_urls'],
+                },
+              },
+            ]
+
+            await customer.mutateResources(operations)
+            console.log('monitorAndUpdateFinalUrl: updated final_urls', { resourceName, newFinalUrl })
+          } catch (updateErr) {
+            console.error('monitorAndUpdateFinalUrl: failed to update final_urls', updateErr)
+          }
+
+          return
+        }
+      }
+
+      if ((Date.now() - startedAt) / 1000 > timeoutSecs) {
+        console.warn('monitorAndUpdateFinalUrl: timeout waiting for approval', { adId, adGroupId })
+        return
+      }
+
+      await new Promise(resolve => setTimeout(resolve, pollIntervalSecs * 1000))
+    }
+  } catch (outerErr) {
+    console.error('monitorAndUpdateFinalUrl: unexpected error', outerErr)
+  }
+}
+
 export async function getAdGroups(customerId: string, refreshToken: string, campaignId?: string): Promise<AdGroup[]> {
   try {
     // Use MCC account as login customer for client account access

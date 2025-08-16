@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createCampaign } from '@/lib/google-ads-client'
+import { createCampaign, monitorAndUpdateFinalUrl } from '@/lib/google-ads-client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
@@ -17,7 +17,7 @@ export async function POST(
       )
     }
 
-    const { campaignData } = await request.json()
+    const { campaignData, autoUrlSwap, autoSwapNewUrl } = await request.json()
     const customerId = params.customerId
 
     console.log(`📝 Creating campaign for customer ${customerId}:`, {
@@ -26,7 +26,9 @@ export async function POST(
       finalUrl: campaignData.finalUrl,
       headlines: campaignData.headlines?.length,
       descriptions: campaignData.descriptions?.length,
-      keywords: campaignData.keywords?.length
+      keywords: campaignData.keywords?.length,
+      autoUrlSwap: !!autoUrlSwap,
+      hasAutoSwapUrl: !!autoSwapNewUrl,
     })
     
     console.log(`🔍 Debug: languageCode in API = '${campaignData.languageCode}'`)
@@ -75,6 +77,13 @@ export async function POST(
         adId: result.adId
       })
 
+      // Background: monitor approval and update final_urls if requested
+      if (autoUrlSwap && autoSwapNewUrl && result.adGroupId && result.adId) {
+        // Fire-and-forget; do not await to keep response fast
+        monitorAndUpdateFinalUrl(customerId, session.refreshToken, result.adGroupId, result.adId, autoSwapNewUrl)
+          .catch(err => console.error('Auto URL swap monitor error:', err))
+      }
+
       // Create the same date-appended name that was used in the backend
       const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
       const campaignNameWithDate = `${campaignData.name} - ${today}`
@@ -85,7 +94,8 @@ export async function POST(
         campaignId: result.campaignId,
         budgetId: result.budgetId,
         adGroupId: result.adGroupId,
-        adId: result.adId
+        adId: result.adId,
+        autoUrlSwapStarted: !!(autoUrlSwap && autoSwapNewUrl && result.adGroupId && result.adId)
       })
     } else {
       console.error(`❌ Campaign creation failed:`, result.error)

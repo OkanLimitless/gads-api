@@ -28,6 +28,7 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
   const [error, setError] = useState<string | null>(null)
   const [selectedAccount, setSelectedAccount] = useState<ManualAccount | null>(null)
   const [showCampaignCreation, setShowCampaignCreation] = useState(false)
+  const [autoMode, setAutoMode] = useState(false)
 
   const validateAndLoadAccounts = async () => {
     if (!accountIds.trim()) {
@@ -119,11 +120,13 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
           timeZone: 'Europe/Amsterdam', // Default timezone
           status: 'ENABLED'
         }}
+        mode={autoMode ? 'auto-url-swap' : 'standard'}
         onSuccess={handleCampaignSuccess}
         onError={handleCampaignError}
         onBack={() => {
           setShowCampaignCreation(false)
           setSelectedAccount(null)
+          setAutoMode(false)
         }}
       />
     )
@@ -269,10 +272,22 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
                             size="sm"
                             onClick={() => {
                               setSelectedAccount(account)
+                              setAutoMode(false)
                               setShowCampaignCreation(true)
                             }}
                           >
                             Deploy Campaign
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedAccount(account)
+                              setAutoMode(true)
+                              setShowCampaignCreation(true)
+                            }}
+                          >
+                            Deploy (Auto URL Swap)
                           </Button>
                         </>
                       )}

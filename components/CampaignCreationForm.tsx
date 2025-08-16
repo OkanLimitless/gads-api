@@ -22,6 +22,7 @@ interface CampaignCreationFormProps {
   onSuccess?: (campaignData: any) => void
   onError?: (error: string) => void
   onBack?: () => void
+  mode?: 'standard' | 'auto-url-swap'
 }
 
 interface AdScheduleTemplate {
@@ -81,7 +82,7 @@ const STEP_TITLES = [
   'Review & Create'
 ]
 
-export default function CampaignCreationForm({ selectedAccount, onSuccess, onError, onBack }: CampaignCreationFormProps) {
+export default function CampaignCreationForm({ selectedAccount, onSuccess, onError, onBack, mode = 'standard' }: CampaignCreationFormProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -109,6 +110,7 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
     languageCode: 'en',
     deviceTargeting: 'ALL'
   })
+  const [autoSwapNewUrl, setAutoSwapNewUrl] = useState<string>('')
 
   // Load templates from localStorage on component mount
   useEffect(() => {
@@ -227,6 +229,10 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
       case 2: // Ad Creation
         if (!campaignData.finalUrl.trim()) newErrors.finalUrl = 'Final URL is required'
         if (!campaignData.finalUrl.startsWith('http')) newErrors.finalUrl = 'Final URL must start with http:// or https://'
+        if (mode === 'auto-url-swap') {
+          if (!autoSwapNewUrl.trim()) newErrors.autoSwapNewUrl = 'Target Final URL is required'
+          if (autoSwapNewUrl && !autoSwapNewUrl.startsWith('http')) newErrors.autoSwapNewUrl = 'Target Final URL must start with http:// or https://'
+        }
         
         const validHeadlines = campaignData.headlines.filter(h => h.trim().length > 0)
         if (validHeadlines.length < 3) newErrors.headlines = 'At least 3 headlines are required'
@@ -324,7 +330,9 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               targetSearchNetwork: false,
               targetContentNetwork: false
             }
-          }
+          },
+          autoUrlSwap: mode === 'auto-url-swap',
+          autoSwapNewUrl: mode === 'auto-url-swap' ? autoSwapNewUrl : undefined
         })
       })
 
@@ -727,7 +735,20 @@ export default function CampaignCreationForm({ selectedAccount, onSuccess, onErr
               {errors.finalUrl && <p className="text-sm text-red-500 mt-1">{errors.finalUrl}</p>}
             </div>
 
-
+            {mode === 'auto-url-swap' && (
+              <div>
+                <Label htmlFor="autoSwapNewUrl">Target Final URL (auto-swap after approval) *</Label>
+                <Input
+                  id="autoSwapNewUrl"
+                  value={autoSwapNewUrl}
+                  onChange={(e) => setAutoSwapNewUrl(e.target.value)}
+                  placeholder="https://your-site.com/your-landing"
+                  className={errors.autoSwapNewUrl ? 'border-red-500' : ''}
+                />
+                {errors.autoSwapNewUrl && <p className="text-sm text-red-500 mt-1">{errors.autoSwapNewUrl}</p>}
+                <p className="text-xs text-gray-500 mt-1">Must be the same domain as the Final URL. The system will update only the ad.final_urls field post-approval.</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
