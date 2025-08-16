@@ -191,3 +191,50 @@ Visit [http://localhost:3000](http://localhost:3000)
 ---
 
 **AdGenius Pro** - Transforming Google Ads management through AI-powered automation and enterprise-grade tools.
+
+## Google Ads scripts (compliant)
+
+These scripts create an ad group and a responsive search ad, then monitor policy approval and optionally update the ad's Final URL within the same domain.
+
+Important: Do not attempt to bypass platform review. Always use landing pages you own and that comply with policies. URL updates, even within the same domain, may trigger re-review.
+
+### Prerequisites
+- Python 3.9+
+- `google-ads` credentials configured via `google-ads.yaml` (see Google Ads API docs)
+
+Install dependencies:
+```bash
+pip3 install -r requirements.txt
+```
+
+### Configure credentials
+By default the client loads `~/.google-ads.yaml`. To use a custom path, set `GOOGLE_ADS_CONFIG_PATH` to your config file.
+
+### Create ad group and ad
+```bash
+python3 scripts/create_ad_group_and_ad.py \
+  --customer_id 1234567890 \
+  --campaign_id 111222333 \
+  --ad_group_name "Search - Brand" \
+  --final_url "https://www.example.com" \
+  --headline "Official Site" \
+  --headline "Book Online" \
+  --headline "24/7 Support" \
+  --description "Find fares and deals today." \
+  --description "Fast booking, secure checkout."
+```
+This writes created resource names to `data/created_ads.json`.
+
+### Monitor approval and update Final URL (same-domain only)
+```bash
+python3 scripts/monitor_and_update_url.py \
+  --customer_id 1234567890 \
+  --new_url "https://www.example.com/landing" \
+  --poll_interval_secs 60 \
+  --timeout_secs 3600
+```
+- Cross-domain URL changes are not supported by this tool.
+
+### Notes
+- Always ensure your Final URLs are policy-compliant and owned/authorized by you.
+- Updates use an update mask for `ad.final_urls` only, but platforms may still re-review the ad.
