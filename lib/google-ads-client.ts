@@ -1651,7 +1651,7 @@ export async function createDummyCampaign(
     languageCode?: string
     adGroupName: string
   }
-): Promise<{ success: boolean; campaignId?: string; budgetId?: string; adGroupId?: string; adId?: string; error?: string }> {
+): Promise<{ success: boolean; campaignId?: string; budgetId?: string; adGroupId?: string; adId?: string; adGroupAdResourceName?: string; error?: string }> {
   try {
     console.log(`🎯 Creating dummy campaign for customer ${customerId}:`, {
       name: templateData.name,
@@ -1969,6 +1969,7 @@ export async function createDummyCampaign(
         
         // Handle ad response format - Updated for mutate_operation_responses
         let adResult, adId
+                 // adGroupAdResourceName intentionally unused; do not automate URL swap
         
         if (adResponse?.mutate_operation_responses) {
           console.log('📋 Ad response has mutate_operation_responses')
@@ -1976,19 +1977,23 @@ export async function createDummyCampaign(
           
           if (adResult?.ad_group_ad_result) {
             adId = adResult.ad_group_ad_result.resource_name?.split('/')[5]
+            adGroupAdResourceName = adResult.ad_group_ad_result.resource_name
           }
         } else if (Array.isArray(adResponse)) {
           adResult = adResponse[0]
           if (adResult?.ad_group_ad) {
             adId = adResult.ad_group_ad.resource_name?.split('/')[5]
+            adGroupAdResourceName = adResult.ad_group_ad.resource_name
           }
         } else if (adResponse?.results) {
           adResult = adResponse.results[0]
           if (adResult?.ad_group_ad) {
             adId = adResult.ad_group_ad.resource_name?.split('/')[5]
+            adGroupAdResourceName = adResult.ad_group_ad.resource_name
           }
         } else if (adResponse?.ad_group_ad) {
           adId = adResponse.ad_group_ad.resource_name?.split('/')[5]
+          adGroupAdResourceName = adResponse.ad_group_ad.resource_name
         }
         
         if (!adId) {
@@ -2217,3 +2222,7 @@ export async function getClientAccounts(mccId: string, refreshToken: string): Pr
     throw new Error(`Failed to fetch client accounts for MCC ${mccId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
+
+// -- New helpers for ad approval polling and final URL update --
+
+
