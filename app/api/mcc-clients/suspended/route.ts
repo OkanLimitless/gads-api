@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { GoogleAdsApi } from 'google-ads-api'
+import { getCampaignPerformance } from '@/lib/google-ads-client'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
         isSuspended: true,
         suspensionReason: status === 'SUSPENDED' ? 'Account Suspended' : 'Account Canceled',
         detectedAt: new Date().toISOString(),
+        detectionReason: status === 'SUSPENDED' ? 'Account Suspended' : 'Account Canceled'
       }
     })
     .filter((account: any) => !excludedAccountIds.includes(account.id))
@@ -142,23 +144,125 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // New: detect accounts to be deleted based on spend in last 30 days and zero spend yesterday
+    const allClientsQuery = `
+      SELECT 
+        customer_client.client_customer,
+        customer_client.descriptive_name,
+        customer_client.currency_code,
+        customer_client.time_zone,
+        customer_client.status,
+        customer_client.test_account,
+        customer_client.manager,
+        customer_client.level
+      FROM customer_client
+      WHERE customer_client.level = 1
+      AND customer_client.manager = false
+    `
+
+    console.log(`📈 Querying ALL client accounts for spend-based detection under MCC ${mccId}...`)
+    const allClientsResponse = await mccCustomerClient.query(allClientsQuery)
+
+    const allClientAccounts: Array<{
+      id: string
+      name: string
+      currency: string
+      timeZone: string
+      status: string
+      testAccount: boolean
+      level: number
+    }> = allClientsResponse.map((item: any) => {
+      const client = item.customer_client
+      const clientId = client.client_customer?.split('/')[1] || 'unknown'
+      return {
+        id: clientId,
+        name: client.descriptive_name || `Client Account ${clientId}`,
+        currency: client.currency_code || 'USD',
+        timeZone: client.time_zone || 'UTC',
+        status: client.status || 'UNKNOWN',
+        testAccount: client.test_account || false,
+        level: client.level || 1,
+      }
+    })
+
+    // Only evaluate enabled, non-excluded accounts
+    const enabledClientAccounts = allClientAccounts.filter(acc => acc.status === 'ENABLED' && !excludedAccountIds.includes(acc.id))
+
+    // Build date range: last 30 days up to yesterday
+    const now = new Date()
+    const yesterday = new Date(now)
+    yesterday.setDate(now.getDate() - 1)
+    const start = new Date(yesterday)
+    start.setDate(yesterday.getDate() - 29)
+
+    const formatDate = (d: Date) => d.toISOString().split('T')[0]
+    const startDate = formatDate(start)
+    const endDate = formatDate(yesterday)
+
+    const toBeDeletedAccounts: Array<{
+      id: string
+      name: string
+      currency: string
+      timeZone: string
+      status: string
+      detectedAt: string
+      detectionReason: string
+      last30DaysCost: number
+      yesterdayCost: number
+    }> = []
+
+    console.log(`🧮 Evaluating spend from ${startDate} to ${endDate} (yesterday)`)
+
+    for (const account of enabledClientAccounts) {
+      try {
+        const perf = await getCampaignPerformance(account.id, session.refreshToken, {
+          startDate,
+          endDate,
+        })
+
+        // Sum costs across all campaigns and dates
+        const totalCostLast30 = perf.reduce((sum, row) => sum + (row.cost || 0), 0)
+        const yesterdayCost = perf
+          .filter(row => row.date === endDate)
+          .reduce((sum, row) => sum + (row.cost || 0), 0)
+
+        if (totalCostLast30 > 200 && yesterdayCost === 0) {
+          toBeDeletedAccounts.push({
+            id: account.id,
+            name: account.name,
+            currency: account.currency,
+            timeZone: account.timeZone,
+            status: account.status,
+            detectedAt: new Date().toISOString(),
+            detectionReason: `Spent ${totalCostLast30.toFixed(2)} ${account.currency} in last 30 days, and 0.00 ${account.currency} yesterday`,
+            last30DaysCost: Number(totalCostLast30.toFixed(2)),
+            yesterdayCost: 0,
+          })
+        }
+      } catch (err) {
+        console.log(`⚠️ Skipping account ${account.id} due to performance fetch error:`, err)
+      }
+    }
+
     const result = {
       success: true,
       suspendedAccounts,
       suspensionDetails,
+      toBeDeletedAccounts,
       summary: {
         totalSuspended: suspendedAccounts.length,
         suspended: suspendedAccounts.filter(acc => acc.status === 'SUSPENDED').length,
         canceled: suspendedAccounts.filter(acc => acc.status === 'CANCELED').length,
+        toBeDeleted: toBeDeletedAccounts.length,
         detectedAt: new Date().toISOString()
       },
       mccId,
-      recommendation: suspendedAccounts.length > 0 
-        ? "Review suspended accounts and manually remove them from your MCC through the Google Ads interface if necessary."
-        : "No suspended accounts detected. Your MCC is clean!"
+      recommendation: suspendedAccounts.length > 0 || toBeDeletedAccounts.length > 0 
+        ? "Review flagged accounts and manually remove them from your MCC through the Google Ads interface if necessary."
+        : "No flagged accounts detected. Your MCC is clean!"
     }
 
-    console.log(`✅ Suspended accounts detection complete:`, result.summary)
+    console.log(`✅ Detection complete:`, result.summary)
 
     return NextResponse.json(result)
 

@@ -28,6 +28,19 @@ interface SuspendedAccount {
   isSuspended: boolean
   suspensionReason: string
   detectedAt: string
+  detectionReason?: string
+}
+
+interface ToBeDeletedAccount {
+  id: string
+  name: string
+  currency: string
+  timeZone: string
+  status: string
+  detectedAt: string
+  detectionReason: string
+  last30DaysCost: number
+  yesterdayCost: number
 }
 
 interface SuspensionDetails {
@@ -41,10 +54,12 @@ interface SuspendedAccountsResponse {
   success: boolean
   suspendedAccounts: SuspendedAccount[]
   suspensionDetails: SuspensionDetails[]
+  toBeDeletedAccounts: ToBeDeletedAccount[]
   summary: {
     totalSuspended: number
     suspended: number
     canceled: number
+    toBeDeleted: number
     detectedAt: string
   }
   mccId: string
@@ -64,6 +79,7 @@ export default function SuspendedAccountsDetector({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
+  const [selectedToDelete, setSelectedToDelete] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (mccId) {
@@ -119,6 +135,24 @@ export default function SuspendedAccountsDetector({
       setSelectedAccounts(new Set(data.suspendedAccounts.map(acc => acc.id)))
     } else {
       setSelectedAccounts(new Set())
+    }
+  }
+
+  const handleToDeleteSelection = (accountId: string, selected: boolean) => {
+    const newSelected = new Set(selectedToDelete)
+    if (selected) {
+      newSelected.add(accountId)
+    } else {
+      newSelected.delete(accountId)
+    }
+    setSelectedToDelete(newSelected)
+  }
+
+  const handleSelectAllToDelete = (selected: boolean) => {
+    if (selected && data) {
+      setSelectedToDelete(new Set(data.toBeDeletedAccounts.map(acc => acc.id)))
+    } else {
+      setSelectedToDelete(new Set())
     }
   }
 
@@ -219,7 +253,7 @@ export default function SuspendedAccountsDetector({
           <CardTitle>Detection Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-red-50 rounded-lg">
               <div className="text-2xl font-bold text-red-600">{data.summary.totalSuspended}</div>
               <div className="text-sm text-gray-600">Total Suspended</div>
@@ -231,6 +265,10 @@ export default function SuspendedAccountsDetector({
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <div className="text-2xl font-bold text-gray-600">{data.summary.canceled}</div>
               <div className="text-sm text-gray-600">Canceled Status</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{data.summary.toBeDeleted}</div>
+              <div className="text-sm text-gray-600">To Be Deleted</div>
             </div>
           </div>
           
@@ -276,6 +314,7 @@ export default function SuspendedAccountsDetector({
                   <TableHead>Currency</TableHead>
                   <TableHead>Time Zone</TableHead>
                   <TableHead>Test Account</TableHead>
+                  <TableHead>Reason</TableHead>
                   <TableHead>Details</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -312,6 +351,9 @@ export default function SuspendedAccountsDetector({
                         )}
                       </TableCell>
                       <TableCell>
+                        {account.detectionReason || account.suspensionReason}
+                      </TableCell>
+                      <TableCell>
                         {details?.error ? (
                           <span className="text-xs text-red-600">Access limited</span>
                         ) : details?.optimizationScore ? (
@@ -344,6 +386,80 @@ export default function SuspendedAccountsDetector({
             <p className="text-green-700">
               Great! Your MCC {mccId} doesn't have any suspended or canceled client accounts.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* To Be Deleted Accounts Table */}
+      {data.toBeDeletedAccounts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>To Be Deleted Accounts</CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleSelectAllToDelete(selectedToDelete.size !== data.toBeDeletedAccounts.length)}
+                  variant="outline"
+                  size="sm"
+                >
+                  {selectedToDelete.size === data.toBeDeletedAccounts.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Select</TableHead>
+                  <TableHead>Account Name</TableHead>
+                  <TableHead>Account ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Currency</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-right">Last 30d Spend</TableHead>
+                  <TableHead className="text-right">Yesterday Spend</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.toBeDeletedAccounts.map((account) => {
+                  const isSelected = selectedToDelete.has(account.id)
+                  return (
+                    <TableRow key={account.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => handleToDeleteSelection(account.id, e.target.checked)}
+                          className="rounded"
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{account.name}</TableCell>
+                      <TableCell className="font-mono text-sm">{account.id}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(account.status)}>
+                          {account.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{account.currency}</TableCell>
+                      <TableCell>{account.detectionReason}</TableCell>
+                      <TableCell className="text-right">{account.currency} {account.last30DaysCost.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{account.currency} {account.yesterdayCost.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Button
+                          onClick={() => window.open(`https://ads.google.com/aw/accounts?ocid=${account.id}`, '_blank')}
+                          variant="ghost"
+                          size="sm"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}
