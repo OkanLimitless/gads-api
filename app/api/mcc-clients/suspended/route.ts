@@ -40,6 +40,20 @@ export async function GET(request: NextRequest) {
       refresh_token: session.refreshToken,
     })
 
+    // Helper: normalize status values from API (numbers -> strings)
+    const STATUS_MAP: Record<number, string> = {
+      0: 'UNSPECIFIED',
+      1: 'UNKNOWN',
+      2: 'ENABLED',
+      3: 'CANCELED',
+      4: 'SUSPENDED',
+    }
+    const normalizeCustomerStatus = (status: any): string => {
+      if (typeof status === 'string') return status
+      if (typeof status === 'number') return STATUS_MAP[status] || 'UNKNOWN'
+      return 'UNKNOWN'
+    }
+
     // Query ALL customer clients managed by this MCC to find suspended ones
     // Note: Google Ads Query Language doesn't support OR with parentheses
     // We'll need to make two separate queries or use a different approach
@@ -79,7 +93,7 @@ export async function GET(request: NextRequest) {
       .map((item: any) => {
       const client = item.customer_client
       const clientId = client.client_customer?.split('/')[1] || 'unknown'
-      const status = client.status || 'UNKNOWN'
+      const status = normalizeCustomerStatus(client.status)
       
       return {
         id: clientId,
@@ -93,10 +107,18 @@ export async function GET(request: NextRequest) {
         managerCustomerId: mccId,
         level: client.level || 1,
         accountType: 'CLIENT' as const,
-        isSuspended: true,
-        suspensionReason: status === 'SUSPENDED' ? 'Account Suspended' : 'Account Canceled',
+        isSuspended: status !== 'ENABLED',
+        suspensionReason: status === 'SUSPENDED' 
+          ? 'Account Suspended' 
+          : status === 'CANCELED' 
+          ? 'Account Canceled' 
+          : 'Account Not Enabled',
         detectedAt: new Date().toISOString(),
-        detectionReason: status === 'SUSPENDED' ? 'Account Suspended' : 'Account Canceled'
+        detectionReason: status === 'SUSPENDED' 
+          ? 'Account Suspended' 
+          : status === 'CANCELED' 
+          ? 'Account Canceled' 
+          : 'Account Not Enabled'
       }
     })
     .filter((account: any) => !excludedAccountIds.includes(account.id))
@@ -109,6 +131,7 @@ export async function GET(request: NextRequest) {
         const accountCustomerClient = googleAdsClient.Customer({
           customer_id: account.id,
           refresh_token: session.refreshToken,
+          login_customer_id: mccId,
         })
 
         const accountDetailsQuery = `
@@ -144,7 +167,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // New: detect accounts to be deleted based on spend in last 30 days and zero spend yesterday
+    // New: detect accounts to be deleted based on spend in last 30 days and zero spend yesterday & today
     const allClientsQuery = `
       SELECT 
         customer_client.client_customer,
@@ -179,7 +202,7 @@ export async function GET(request: NextRequest) {
         name: client.descriptive_name || `Client Account ${clientId}`,
         currency: client.currency_code || 'USD',
         timeZone: client.time_zone || 'UTC',
-        status: client.status || 'UNKNOWN',
+        status: normalizeCustomerStatus(client.status),
         testAccount: client.test_account || false,
         level: client.level || 1,
       }
@@ -188,7 +211,7 @@ export async function GET(request: NextRequest) {
     // Only evaluate enabled, non-excluded accounts
     const enabledClientAccounts = allClientAccounts.filter(acc => acc.status === 'ENABLED' && !excludedAccountIds.includes(acc.id))
 
-    // Build date range: last 30 days up to yesterday
+    // Build date range: last 30 days up to yesterday + today for zero-spend verification
     const now = new Date()
     const yesterday = new Date(now)
     yesterday.setDate(now.getDate() - 1)
@@ -198,6 +221,7 @@ export async function GET(request: NextRequest) {
     const formatDate = (d: Date) => d.toISOString().split('T')[0]
     const startDate = formatDate(start)
     const endDate = formatDate(yesterday)
+    const todayDate = formatDate(now)
 
     const toBeDeletedAccounts: Array<{
       id: string
@@ -211,7 +235,7 @@ export async function GET(request: NextRequest) {
       yesterdayCost: number
     }> = []
 
-    console.log(`🧮 Evaluating spend from ${startDate} to ${endDate} (yesterday)`)
+    console.log(`🧮 Evaluating spend from ${startDate} to ${endDate} (yesterday), and verifying zero spend for today ${todayDate}`)
 
     for (const account of enabledClientAccounts) {
       try {
@@ -226,7 +250,14 @@ export async function GET(request: NextRequest) {
           .filter(row => row.date === endDate)
           .reduce((sum, row) => sum + (row.cost || 0), 0)
 
-        if (totalCostLast30 > 200 && yesterdayCost === 0) {
+        // Fetch today's performance to ensure zero spend today as well
+        const perfToday = await getCampaignPerformance(account.id, session.refreshToken, {
+          startDate: todayDate,
+          endDate: todayDate,
+        })
+        const todayCost = perfToday.reduce((sum, row) => sum + (row.cost || 0), 0)
+
+        if (totalCostLast30 > 200 && yesterdayCost === 0 && todayCost === 0) {
           toBeDeletedAccounts.push({
             id: account.id,
             name: account.name,
@@ -234,7 +265,7 @@ export async function GET(request: NextRequest) {
             timeZone: account.timeZone,
             status: account.status,
             detectedAt: new Date().toISOString(),
-            detectionReason: `Spent ${totalCostLast30.toFixed(2)} ${account.currency} in last 30 days, and 0.00 ${account.currency} yesterday`,
+            detectionReason: `Spent ${totalCostLast30.toFixed(2)} ${account.currency} in last 30 days, and 0.00 ${account.currency} yesterday and today`,
             last30DaysCost: Number(totalCostLast30.toFixed(2)),
             yesterdayCost: 0,
           })
