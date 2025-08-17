@@ -107,6 +107,23 @@ export default function TemplateManager() {
     }
   }
 
+  const duplicateTemplate = async (templateId: string) => {
+    try {
+      const response = await fetch(`/api/template-manager?action=duplicate&id=${templateId}`, {
+        method: 'POST'
+      })
+      const data = await response.json()
+      if (data.success) {
+        setSuccess('Template duplicated successfully!')
+        loadTemplates()
+      } else {
+        setError(data.error || 'Failed to duplicate template')
+      }
+    } catch (err) {
+      setError('Failed to duplicate template')
+    }
+  }
+
   const handleSave = () => {
     if (!editingTemplate) return
     
@@ -128,7 +145,15 @@ export default function TemplateManager() {
       keywords: editingTemplate.keywords.filter(k => k.trim())
     }
     
-    saveTemplate(cleanedTemplate)
+    // If we are editing (not creating), ensure _id is present so API performs update
+    if (!isCreating && cleanedTemplate._id) {
+      saveTemplate(cleanedTemplate)
+      return
+    }
+
+    // Creating new
+    const { _id, ...createPayload } = cleanedTemplate
+    saveTemplate(createPayload as TemplateData)
   }
 
   const exportTemplates = () => {
@@ -195,17 +220,17 @@ export default function TemplateManager() {
         } else {
           setError('Invalid JSON format: expected an array of templates')
         }
-              } catch (err) {
-          setError('Invalid JSON file')
-        } finally {
-          setIsImporting(false)
-        }
+      } catch (err) {
+        setError('Invalid JSON file')
+      } finally {
+        setIsImporting(false)
       }
-      reader.readAsText(file)
-      
-      // Clear the file input so the same file can be imported again if needed
-      event.target.value = ''
     }
+    reader.readAsText(file)
+    
+    // Clear the file input so the same file can be imported again if needed
+    event.target.value = ''
+  }
 
   return (
     <div className="space-y-6">
@@ -299,21 +324,28 @@ export default function TemplateManager() {
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
-                                                 <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => deleteTemplate(template._id!)}
-                         >
-                           <Trash2 className="h-3 w-3" />
-                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => duplicateTemplate(template._id!)}
+                        >
+                          Duplicate
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteTemplate(template._id!)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                     <div className="text-xs text-blue-600 truncate">
                       {template.finalUrl}
                     </div>
                   </CardContent>
-                </Card>
-              ))}
+                </Card>)
+              )}
             </div>
           )}
         </CardContent>
