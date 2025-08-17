@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create or update real campaign template
+// POST - Create, update, or duplicate real campaign template
 export async function POST(request: NextRequest) {
   try {
     console.log('💾 Saving real campaign template to MongoDB')
@@ -87,6 +87,53 @@ export async function POST(request: NextRequest) {
 
     if (!session) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const action = searchParams.get('action')
+
+    const collection = await getCampaignTemplatesCollection()
+
+    // Duplicate action
+    if (action === 'duplicate') {
+      const id = searchParams.get('id')
+      if (!id) {
+        return NextResponse.json({ success: false, error: 'Template ID is required for duplication' }, { status: 400 })
+      }
+
+      let source
+      try {
+        if (id.length === 24) {
+          source = await collection.findOne({ _id: new ObjectId(id) })
+        } else {
+          source = await collection.findOne({ _id: id })
+        }
+      } catch (e) {
+        source = await collection.findOne({ _id: id })
+      }
+
+      if (!source) {
+        return NextResponse.json({ success: false, error: 'Template to duplicate not found' }, { status: 404 })
+      }
+
+      const now = new Date().toISOString()
+      const duplicateDoc: any = {
+        ...source,
+        _id: undefined,
+        name: `${source.name} (Copy)`,
+        createdAt: now,
+        updatedAt: now,
+      }
+      duplicateDoc.data = {
+        ...source.data,
+        headlines: [...(source.data?.headlines || [])],
+        descriptions: [...(source.data?.descriptions || [])],
+        keywords: [...(source.data?.keywords || [])],
+        locations: [...(source.data?.locations || [])],
+      }
+
+      const insertRes = await collection.insertOne(duplicateDoc)
+      return NextResponse.json({ success: true, message: 'Template duplicated successfully', templateId: insertRes.insertedId.toString() })
     }
 
     const templateData = await request.json()
@@ -127,7 +174,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const collection = await getCampaignTemplatesCollection()
     const now = new Date().toISOString()
     
     let result
@@ -135,45 +181,36 @@ export async function POST(request: NextRequest) {
     
     // Check if template exists (update) or create new
     if (templateData._id) {
+      let existingTemplate
+      let filterId: any = templateData._id
       try {
-        const existingTemplate = await collection.findOne({ _id: templateData._id })
-        
-        if (existingTemplate) {
-          isUpdate = true
-          const updatedTemplate = {
-            ...templateData,
-            _id: templateData._id,
-            createdAt: existingTemplate.createdAt,
-            updatedAt: now
-          }
-          
-          result = await collection.replaceOne(
-            { _id: templateData._id },
-            updatedTemplate
-          )
-          
-          console.log(`✅ Updated real campaign template: ${templateData.name} (${templateData.category})`)
+        if (typeof templateData._id === 'string' && templateData._id.length === 24) {
+          existingTemplate = await collection.findOne({ _id: new ObjectId(templateData._id) })
+          filterId = new ObjectId(templateData._id)
+        } else {
+          existingTemplate = await collection.findOne({ _id: templateData._id })
+          filterId = templateData._id
         }
       } catch (error) {
-        // If ObjectId conversion fails, try as string
-        const existingTemplate = await collection.findOne({ _id: templateData._id })
-        
-        if (existingTemplate) {
-          isUpdate = true
-          const updatedTemplate = {
-            ...templateData,
-            _id: templateData._id,
-            createdAt: existingTemplate.createdAt,
-            updatedAt: now
-          }
-          
-          result = await collection.replaceOne(
-            { _id: templateData._id },
-            updatedTemplate
-          )
-          
-          console.log(`✅ Updated real campaign template: ${templateData.name} (${templateData.category})`)
+        existingTemplate = await collection.findOne({ _id: templateData._id })
+        filterId = templateData._id
+      }
+      
+      if (existingTemplate) {
+        isUpdate = true
+        const updatedTemplate = {
+          ...templateData,
+          _id: filterId,
+          createdAt: existingTemplate.createdAt,
+          updatedAt: now
         }
+        
+        result = await collection.replaceOne(
+          { _id: filterId },
+          updatedTemplate
+        )
+        
+        console.log(`✅ Updated real campaign template: ${templateData.name} (${templateData.category})`)
       }
     }
     

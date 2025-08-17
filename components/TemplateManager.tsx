@@ -107,23 +107,6 @@ export default function TemplateManager() {
     }
   }
 
-  const duplicateTemplate = async (templateId: string) => {
-    try {
-      const response = await fetch(`/api/template-manager?action=duplicate&id=${templateId}`, {
-        method: 'POST'
-      })
-      const data = await response.json()
-      if (data.success) {
-        setSuccess('Template duplicated successfully!')
-        loadTemplates()
-      } else {
-        setError(data.error || 'Failed to duplicate template')
-      }
-    } catch (err) {
-      setError('Failed to duplicate template')
-    }
-  }
-
   const handleSave = () => {
     if (!editingTemplate) return
     
@@ -145,15 +128,7 @@ export default function TemplateManager() {
       keywords: editingTemplate.keywords.filter(k => k.trim())
     }
     
-    // If we are editing (not creating), ensure _id is present so API performs update
-    if (!isCreating && cleanedTemplate._id) {
-      saveTemplate(cleanedTemplate)
-      return
-    }
-
-    // Creating new
-    const { _id, ...createPayload } = cleanedTemplate
-    saveTemplate(createPayload as TemplateData)
+    saveTemplate(cleanedTemplate)
   }
 
   const exportTemplates = () => {
@@ -327,13 +302,6 @@ export default function TemplateManager() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => duplicateTemplate(template._id!)}
-                        >
-                          Duplicate
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
                           onClick={() => deleteTemplate(template._id!)}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -344,8 +312,8 @@ export default function TemplateManager() {
                       {template.finalUrl}
                     </div>
                   </CardContent>
-                </Card>)
-              )}
+                </Card>
+              ))}
             </div>
           )}
         </CardContent>

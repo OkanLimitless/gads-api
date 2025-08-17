@@ -208,6 +208,25 @@ export default function RealCampaignTemplateManager({
     }
   }
 
+  const duplicateTemplate = async (templateId: string) => {
+    setError(null)
+    setSuccess(null)
+    try {
+      const response = await fetch(`/api/campaign-templates?action=duplicate&id=${templateId}`, {
+        method: 'POST'
+      })
+      const result = await response.json()
+      if (result.success) {
+        setSuccess('Template duplicated successfully!')
+        loadTemplates()
+      } else {
+        setError(result.error || 'Failed to duplicate template')
+      }
+    } catch (err) {
+      setError('Failed to duplicate template')
+    }
+  }
+
   const filteredTemplates = selectedCategory === 'ALL' 
     ? templates 
     : templates.filter(t => t.category === selectedCategory)
@@ -568,6 +587,13 @@ export default function RealCampaignTemplateManager({
                           >
                             <Edit className="h-4 w-4 mr-2" />
                             Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => duplicateTemplate(template._id!)}
+                          >
+                            Duplicate
                           </Button>
                           <Button
                             size="sm"
