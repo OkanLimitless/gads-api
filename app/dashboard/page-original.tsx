@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Link2, LogOut, Building2, Users, Target, AlertCircle, Loader2, ChevronRight, FileText, Unlink } from 'lucide-react'
+import { ArrowLeft, Link2, LogOut, Building2, Users, Target, AlertCircle, Loader2, ChevronRight, FileText, Unlink, Phone } from 'lucide-react'
 import Link from 'next/link'
 import CampaignCreationForm from '@/components/CampaignCreationForm'
+import dynamic from 'next/dynamic'
+const CallOnlyCampaignForm = dynamic(() => import('@/components/CallOnlyCampaignForm'), { ssr: false })
 import DummyCampaignManager from '@/components/DummyCampaignManager'
 import TemplateManager from '@/components/TemplateManager'
 import ManualAccountLoader from '@/components/ManualAccountLoader'
@@ -36,6 +38,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager' | 'manual-accounts' | 'unified-templates' | 'unlink-accounts'>('mcc-selection')
+  const [creationMode, setCreationMode] = useState<'search' | 'call-only'>('search')
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -550,17 +553,47 @@ export default function Dashboard() {
           {step === 'campaign-creation' && (
             <>
               {selectedClient ? (
-                <CampaignCreationForm
-                  selectedAccount={selectedClient}
-                  onSuccess={(campaignData) => {
-                    console.log('Campaign created successfully:', campaignData)
-                    // You can add additional success handling here
-                  }}
-                  onError={(error) => {
-                    console.error('Campaign creation failed:', error)
-                    // You can add additional error handling here
-                  }}
-                />
+                <>
+                  <div className="mb-4 flex gap-2">
+                    <Button
+                      variant={creationMode === 'search' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCreationMode('search')}
+                    >
+                      <Target className="h-4 w-4 mr-2" /> Search Campaign
+                    </Button>
+                    <Button
+                      variant={creationMode === 'call-only' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCreationMode('call-only')}
+                    >
+                      <Phone className="h-4 w-4 mr-2" /> Call-Only Campaign
+                    </Button>
+                  </div>
+                  {creationMode === 'call-only' ? (
+                    <CallOnlyCampaignForm
+                      selectedAccount={selectedClient as any}
+                      onSuccess={(campaignData) => {
+                        console.log('Call-only campaign created successfully:', campaignData)
+                      }}
+                      onError={(error) => {
+                        console.error('Call-only campaign creation failed:', error)
+                      }}
+                      onBack={() => setStep('client-selection')}
+                    />
+                  ) : (
+                    <CampaignCreationForm
+                      selectedAccount={selectedClient}
+                      onSuccess={(campaignData) => {
+                        console.log('Campaign created successfully:', campaignData)
+                      }}
+                      onError={(error) => {
+                        console.error('Campaign creation failed:', error)
+                      }}
+                      onBack={() => setStep('client-selection')}
+                    />
+                  )}
+                </>
               ) : (
                 <Card>
                   <CardHeader>
