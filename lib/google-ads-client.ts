@@ -1642,6 +1642,7 @@ export async function createCallOnlyCampaign(
 
     // Keywords
     if (campaignData.keywords && campaignData.keywords.length > 0) {
+      console.log('🔑 Adding keywords for CALL-ONLY campaign...')
       const processedKeywords: string[] = []
       campaignData.keywords.forEach(k => {
         if (k.includes(',')) {
@@ -1651,22 +1652,51 @@ export async function createCallOnlyCampaign(
         }
       })
 
-      const keywordOperations = processedKeywords.map(keyword => ({
-        entity: 'ad_group_criterion',
-        operation: 'create',
-        resource: {
-          ad_group: adGroupResourceName,
-          status: enums.AdGroupCriterionStatus.ENABLED,
-          keyword: {
-            text: keyword,
-            match_type: enums.KeywordMatchType.BROAD
-          },
-          cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
+      console.log(`📝 Processed keywords:`, processedKeywords)
+
+      const keywordOperations = processedKeywords.map(keyword => {
+        let keywordText = keyword
+        let matchType = enums.KeywordMatchType.BROAD // default
+
+        if (keyword.startsWith('[') && keyword.endsWith(']')) {
+          keywordText = keyword.slice(1, -1)
+          matchType = enums.KeywordMatchType.EXACT
+        } else if (keyword.startsWith('"') && keyword.endsWith('"')) {
+          keywordText = keyword.slice(1, -1)
+          matchType = enums.KeywordMatchType.PHRASE
         }
-      }))
+
+        console.log(`🎯 Keyword: "${keywordText}" - Match Type: ${
+          matchType === enums.KeywordMatchType.EXACT ? 'EXACT' :
+          matchType === enums.KeywordMatchType.PHRASE ? 'PHRASE' : 'BROAD'
+        }`)
+
+        return {
+          entity: 'ad_group_criterion',
+          operation: 'create',
+          resource: {
+            ad_group: adGroupResourceName,
+            status: enums.AdGroupCriterionStatus.ENABLED,
+            keyword: {
+              text: keywordText,
+              match_type: matchType
+            },
+            cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
+          }
+        }
+      })
+
       try {
-        await customer.mutateResources(keywordOperations)
-        console.log(`✅ Added ${keywordOperations.length} keywords`)
+        const keywordsResponse = await customer.mutateResources(keywordOperations)
+        let count = 0
+        if (keywordsResponse?.mutate_operation_responses) {
+          count = keywordsResponse.mutate_operation_responses.length
+        } else if (keywordsResponse?.results) {
+          count = keywordsResponse.results.length
+        } else if (Array.isArray(keywordsResponse)) {
+          count = keywordsResponse.length
+        }
+        console.log(`✅ Added ${count} keywords (call-only) with proper match types`)
       } catch (e) {
         console.warn('⚠️ Failed to add keywords for call-only campaign:', e)
       }
