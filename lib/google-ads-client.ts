@@ -1402,6 +1402,463 @@ export async function createCampaign(
   }
 }
 
+export interface CallOnlyCampaignCreationData {
+  name: string
+  budgetAmountMicros: number
+  biddingStrategy: string
+  campaignType: string
+  startDate?: string
+  endDate?: string
+  targetCpa?: number
+  targetRoas?: number
+
+  adGroupName: string
+  defaultBidMicros?: number
+
+  // Call Ad specifics
+  businessName: string
+  countryCode: string // e.g., US, NL
+  phoneNumber: string // national format without country code prefix
+  headline1: string
+  headline2: string
+  description1: string
+  description2: string
+  phoneNumberVerificationUrl?: string
+  callTracked?: boolean
+  disableCallConversion?: boolean
+
+  // Keywords
+  keywords: string[]
+
+  // Targeting
+  locations?: string[]
+  languageCode?: string
+  adScheduleTemplateId?: string
+  adScheduleTemplate?: {
+    id: string
+    name: string
+    description: string
+    schedule: {
+      dayOfWeek: string
+      startHour: number
+      startMinute: number
+      endHour: number
+      endMinute: number
+      bidModifier?: number
+    }[]
+  }
+  // Device targeting is effectively mobile-only for call ads
+}
+
+export async function createCallOnlyCampaign(
+  customerId: string,
+  refreshToken: string,
+  campaignData: CallOnlyCampaignCreationData
+): Promise<{ success: boolean; campaignId?: string; budgetId?: string; adGroupId?: string; adId?: string; error?: string }> {
+  try {
+    console.log(`📞 Creating CALL-ONLY campaign for customer ${customerId}:`, {
+      name: campaignData.name,
+      budgetAmountMicros: campaignData.budgetAmountMicros,
+      countryCode: campaignData.countryCode,
+      phoneNumber: campaignData.phoneNumber
+    })
+
+    const knownMCCId = '1284928552'
+    const customer = googleAdsClient.Customer({
+      customer_id: customerId,
+      refresh_token: refreshToken,
+      login_customer_id: knownMCCId,
+    })
+
+    // Validate account is accessible
+    try {
+      const accountValidationQuery = `
+        SELECT 
+          customer.id,
+          customer.descriptive_name,
+          customer.status,
+          customer.manager,
+          customer.test_account,
+          customer.currency_code,
+          customer.time_zone
+        FROM customer
+        LIMIT 1
+      `
+      const validationResponse = await customer.query(accountValidationQuery)
+      if (!validationResponse || validationResponse.length === 0) {
+        throw new Error(`Account ${customerId} is not accessible or does not exist in the MCC`)
+      }
+      const customerInfo = validationResponse[0].customer
+      const isEnabled = customerInfo.status === 'ENABLED' || customerInfo.status === 1
+      if (!isEnabled) {
+        if (!customerInfo.test_account && (customerInfo.status === 2 || customerInfo.status === 'SUSPENDED')) {
+          console.log(`⚠️ WARNING: Account ${customerId} shows as SUSPENDED; proceeding anyway for manual deployment`)
+        } else {
+          throw new Error(`Account ${customerId} is not enabled (status: ${customerInfo.status})`)
+        }
+      }
+    } catch (validationError) {
+      console.error(`❌ Account validation failed for ${customerId}:`, validationError)
+      return { success: false, error: `Account validation failed: ${validationError.message || 'Account not accessible'}` }
+    }
+
+    const { enums, ResourceNames } = require('google-ads-api')
+
+    // Prepare atomic budget + campaign create
+    const budgetResourceName = ResourceNames.campaignBudget(customerId, "-1")
+    const today = new Date().toISOString().split('T')[0]
+    const campaignNameWithDate = `${campaignData.name} - ${today}`
+
+    const campaignResource: any = {
+      name: campaignNameWithDate,
+      advertising_channel_type: enums.AdvertisingChannelType.SEARCH,
+      status: enums.CampaignStatus.ENABLED,
+      campaign_budget: budgetResourceName,
+      start_date: campaignData.startDate || new Date().toISOString().split('T')[0].replace(/-/g, ''),
+      end_date: campaignData.endDate,
+      network_settings: {
+        target_google_search: true,
+        target_search_network: false,
+        target_content_network: false,
+        target_partner_search_network: false,
+      }
+    }
+
+    if (campaignData.biddingStrategy === 'TARGET_CPA' && campaignData.targetCpa) {
+      campaignResource.target_cpa = { target_cpa_micros: campaignData.targetCpa }
+    } else if (campaignData.biddingStrategy === 'TARGET_ROAS' && campaignData.targetRoas) {
+      campaignResource.target_roas = { target_roas: campaignData.targetRoas }
+    } else if (campaignData.biddingStrategy === 'MAXIMIZE_CONVERSIONS') {
+      campaignResource.maximize_conversions = {}
+    } else if (campaignData.biddingStrategy === 'MAXIMIZE_CONVERSION_VALUE') {
+      campaignResource.maximize_conversion_value = {}
+    } else {
+      campaignResource.manual_cpc = { enhanced_cpc_enabled: campaignData.biddingStrategy === 'ENHANCED_CPC' }
+    }
+
+    const operations = [
+      {
+        entity: 'campaign_budget',
+        operation: 'create',
+        resource: {
+          resource_name: budgetResourceName,
+          amount_micros: campaignData.budgetAmountMicros,
+          delivery_method: enums.BudgetDeliveryMethod.STANDARD,
+          explicitly_shared: false,
+        },
+      },
+      {
+        entity: 'campaign',
+        operation: 'create',
+        resource: campaignResource,
+      },
+    ]
+
+    const createResponse = await customer.mutateResources(operations)
+
+    let budgetResult, campaignResult
+    if (createResponse.mutate_operation_responses) {
+      budgetResult = createResponse.mutate_operation_responses[0].campaign_budget_result
+      campaignResult = createResponse.mutate_operation_responses[1].campaign_result
+    } else if (createResponse.results) {
+      budgetResult = createResponse.results[0]
+      campaignResult = createResponse.results[1]
+    } else {
+      throw new Error('Invalid response creating campaign')
+    }
+
+    const budgetId = budgetResult.resource_name.split('/')[3]
+    const campaignId = campaignResult.resource_name.split('/')[3]
+    const campaignResourceName = campaignResult.resource_name
+    console.log(`✅ Created CALL-ONLY budget ${budgetId} and campaign ${campaignId}`)
+
+    // Create Ad Group
+    const adGroupOperations = [
+      {
+        entity: 'ad_group',
+        operation: 'create',
+        resource: {
+          name: campaignData.adGroupName,
+          campaign: campaignResourceName,
+          status: enums.AdGroupStatus.ENABLED,
+          type: enums.AdGroupType.SEARCH_STANDARD,
+          cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
+        }
+      }
+    ]
+
+    const adGroupResponse = await customer.mutateResources(adGroupOperations)
+    let adGroupResult
+    if (adGroupResponse.mutate_operation_responses) {
+      adGroupResult = adGroupResponse.mutate_operation_responses[0].ad_group_result
+    } else if (adGroupResponse.results) {
+      adGroupResult = adGroupResponse.results[0]
+    } else {
+      throw new Error('Invalid response creating ad group')
+    }
+    const adGroupResourceName = adGroupResult.resource_name
+    const adGroupId = adGroupResourceName.split('/')[3]
+    console.log(`✅ Created ad group ${adGroupId}`)
+
+    // Create Call Ad
+    const callAdResource = {
+      call_ad: {
+        business_name: campaignData.businessName,
+        headline1: campaignData.headline1,
+        headline2: campaignData.headline2,
+        description1: campaignData.description1,
+        description2: campaignData.description2,
+        country_code: campaignData.countryCode,
+        phone_number: campaignData.phoneNumber,
+        call_tracked: campaignData.callTracked !== false,
+        disable_call_conversion: campaignData.disableCallConversion === true,
+        ...(campaignData.phoneNumberVerificationUrl ? { phone_number_verification_url: campaignData.phoneNumberVerificationUrl } : {})
+      }
+    }
+
+    const adOperations = [
+      {
+        entity: 'ad_group_ad',
+        operation: 'create',
+        resource: {
+          ad_group: adGroupResourceName,
+          status: enums.AdGroupAdStatus.ENABLED,
+          ad: callAdResource,
+        }
+      }
+    ]
+    const adResponse = await customer.mutateResources(adOperations)
+    let adResult
+    if (adResponse.mutate_operation_responses) {
+      adResult = adResponse.mutate_operation_responses[0].ad_group_ad_result
+    } else if (adResponse.results) {
+      adResult = adResponse.results[0]
+    } else {
+      throw new Error('Invalid response creating call ad')
+    }
+    const adResourceName = adResult.resource_name
+    const adId = adResourceName.split('/')[3] || adResourceName.split('/')[5]
+    console.log(`✅ Created call ad ${adId}`)
+
+    // Keywords
+    if (campaignData.keywords && campaignData.keywords.length > 0) {
+      const processedKeywords: string[] = []
+      campaignData.keywords.forEach(k => {
+        if (k.includes(',')) {
+          processedKeywords.push(...k.split(',').map(s => s.trim()).filter(Boolean))
+        } else if (k.trim()) {
+          processedKeywords.push(k.trim())
+        }
+      })
+
+      const keywordOperations = processedKeywords.map(keyword => ({
+        entity: 'ad_group_criterion',
+        operation: 'create',
+        resource: {
+          ad_group: adGroupResourceName,
+          status: enums.AdGroupCriterionStatus.ENABLED,
+          keyword: {
+            text: keyword,
+            match_type: enums.KeywordMatchType.BROAD
+          },
+          cpc_bid_micros: campaignData.defaultBidMicros || 1000000,
+        }
+      }))
+      try {
+        await customer.mutateResources(keywordOperations)
+        console.log(`✅ Added ${keywordOperations.length} keywords`)
+      } catch (e) {
+        console.warn('⚠️ Failed to add keywords for call-only campaign:', e)
+      }
+    }
+
+    // Location Targeting
+    if (campaignData.locations && campaignData.locations.length > 0) {
+      const locationCriteriaMap: Record<string, number> = {
+        'US': 2840,
+        'CA': 2124,
+        'GB': 2826,
+        'AU': 2036,
+        'DE': 2276,
+        'FR': 2250,
+        'NL': 2528,
+        'nl': 2528,
+      }
+      const locationOps = campaignData.locations.map(loc => ({
+        entity: 'campaign_criterion',
+        operation: 'create',
+        resource: {
+          campaign: campaignResult.resource_name,
+          location: { geo_target_constant: `geoTargetConstants/${locationCriteriaMap[loc] || 2840}` }
+        }
+      }))
+      try {
+        await customer.mutateResources(locationOps)
+        console.log('✅ Added location targeting for CALL-ONLY')
+      } catch (e) {
+        console.warn('⚠️ Failed to add location targeting:', e)
+      }
+    }
+
+    // Language Targeting
+    if (campaignData.languageCode) {
+      const inputLanguageCode = String(campaignData.languageCode || '').trim()
+      const normalizedLanguageKey = inputLanguageCode.toLowerCase()
+      const languageConstantId = getLanguageConstantId(normalizedLanguageKey, inputLanguageCode)
+      const languageOps = [{
+        entity: 'campaign_criterion',
+        operation: 'create',
+        resource: {
+          campaign: campaignResult.resource_name,
+          language: { language_constant: `languageConstants/${languageConstantId || 1000}` }
+        }
+      }]
+      try {
+        await customer.mutateResources(languageOps)
+        console.log('✅ Added language targeting for CALL-ONLY')
+      } catch (e) {
+        console.warn('⚠️ Failed to add language targeting:', e)
+      }
+    }
+
+    // Device Targeting: enforce mobile-only for call ads
+    try {
+      const deviceBidModifierOperations = [
+        {
+          entity: 'campaign_criterion',
+          operation: 'create',
+          resource: {
+            campaign: campaignResult.resource_name,
+            device: { type: enums.Device.DESKTOP },
+            bid_modifier: 0,
+            status: enums.CampaignCriterionStatus.ENABLED
+          }
+        },
+        {
+          entity: 'campaign_criterion',
+          operation: 'create',
+          resource: {
+            campaign: campaignResult.resource_name,
+            device: { type: enums.Device.TABLET },
+            bid_modifier: 0,
+            status: enums.CampaignCriterionStatus.ENABLED
+          }
+        }
+      ]
+      await customer.mutateResources(deviceBidModifierOperations)
+      console.log('✅ Enforced mobile-only targeting for CALL-ONLY campaign')
+    } catch (e) {
+      console.warn('⚠️ Failed to set device bid modifiers for call-only campaign:', e)
+    }
+
+    // Ad Scheduling
+    if (campaignData.adScheduleTemplateId) {
+      try {
+        let adScheduleOperations: any[] = []
+        if (campaignData.adScheduleTemplateId === 'est_business_hours') {
+          const daysOfWeek = ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY']
+          adScheduleOperations = daysOfWeek.flatMap(day => ([
+            {
+              entity: 'campaign_criterion',
+              operation: 'create',
+              resource: {
+                campaign: campaignResult.resource_name,
+                ad_schedule: {
+                  day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+                  start_hour: 0,
+                  start_minute: enums.MinuteOfHour.ZERO,
+                  end_hour: 3,
+                  end_minute: enums.MinuteOfHour.ZERO
+                }
+              }
+            },
+            {
+              entity: 'campaign_criterion',
+              operation: 'create',
+              resource: {
+                campaign: campaignResult.resource_name,
+                ad_schedule: {
+                  day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+                  start_hour: 15,
+                  start_minute: enums.MinuteOfHour.ZERO,
+                  end_hour: 23,
+                  end_minute: enums.MinuteOfHour.FORTY_FIVE
+                }
+              }
+            }
+          ]))
+        } else if (campaignData.adScheduleTemplateId === 'amsterdam_evening_rush') {
+          const daysOfWeek = ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY']
+          adScheduleOperations = daysOfWeek.flatMap(day => ([
+            {
+              entity: 'campaign_criterion',
+              operation: 'create',
+              resource: {
+                campaign: campaignResult.resource_name,
+                ad_schedule: {
+                  day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+                  start_hour: 23,
+                  start_minute: enums.MinuteOfHour.ZERO,
+                  end_hour: 23,
+                  end_minute: enums.MinuteOfHour.FORTY_FIVE
+                }
+              }
+            },
+            {
+              entity: 'campaign_criterion',
+              operation: 'create',
+              resource: {
+                campaign: campaignResult.resource_name,
+                ad_schedule: {
+                  day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+                  start_hour: 0,
+                  start_minute: enums.MinuteOfHour.ZERO,
+                  end_hour: 3,
+                  end_minute: enums.MinuteOfHour.ZERO
+                }
+              }
+            }
+          ]))
+        } else if (campaignData.adScheduleTemplate && campaignData.adScheduleTemplate.schedule.length > 0) {
+          adScheduleOperations = campaignData.adScheduleTemplate.schedule.map(slot => ({
+            entity: 'campaign_criterion',
+            operation: 'create',
+            resource: {
+              campaign: campaignResult.resource_name,
+              ad_schedule: {
+                day_of_week: enums.DayOfWeek[slot.dayOfWeek as keyof typeof enums.DayOfWeek],
+                start_hour: slot.startHour,
+                start_minute: slot.startMinute === 0 ? enums.MinuteOfHour.ZERO :
+                              slot.startMinute === 15 ? enums.MinuteOfHour.FIFTEEN :
+                              slot.startMinute === 30 ? enums.MinuteOfHour.THIRTY :
+                              enums.MinuteOfHour.FORTY_FIVE,
+                end_hour: slot.endHour,
+                end_minute: slot.endMinute === 0 ? enums.MinuteOfHour.ZERO :
+                            slot.endMinute === 15 ? enums.MinuteOfHour.FIFTEEN :
+                            slot.endMinute === 30 ? enums.MinuteOfHour.THIRTY :
+                            enums.MinuteOfHour.FORTY_FIVE,
+              },
+              bid_modifier: slot.bidModifier ? (slot.bidModifier / 100 + 1) : 1.0,
+            }
+          }))
+        }
+        if (adScheduleOperations.length > 0) {
+          await customer.mutateResources(adScheduleOperations)
+          console.log(`✅ Added ${adScheduleOperations.length} ad schedule slots (CALL-ONLY)`)        
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to add ad scheduling for call-only campaign:', e)
+      }
+    }
+
+    console.log('🎉 Call-only campaign creation completed successfully!')
+    return { success: true, campaignId, budgetId, adGroupId, adId }
+  } catch (error) {
+    console.error('💥 Error creating call-only campaign:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
 export async function getCampaigns(customerId: string, refreshToken: string): Promise<Campaign[]> {
   try {
     console.log(`🔍 Fetching campaigns for customer ${customerId}`)

@@ -6,8 +6,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Trash2, Target, AlertCircle, CheckCircle, Building2, ArrowLeft } from 'lucide-react'
+import { Loader2, Plus, Trash2, Target, AlertCircle, CheckCircle, Building2, ArrowLeft, Phone } from 'lucide-react'
 import CampaignCreationForm from './CampaignCreationForm'
+import dynamic from 'next/dynamic'
+
+const CallOnlyCampaignForm = dynamic(() => import('./CallOnlyCampaignForm'), { ssr: false })
 
 interface ManualAccount {
   id: string
@@ -29,6 +32,7 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
   const [selectedAccount, setSelectedAccount] = useState<ManualAccount | null>(null)
   const [showCampaignCreation, setShowCampaignCreation] = useState(false)
   const [autoMode, setAutoMode] = useState(false)
+  const [callOnlyMode, setCallOnlyMode] = useState(false)
 
   const validateAndLoadAccounts = async () => {
     if (!accountIds.trim()) {
@@ -110,6 +114,28 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
   const readyAccounts = accounts.filter(acc => acc.status === 'ready')
   const deployedAccounts = accounts.filter(acc => acc.status === 'campaign-deployed')
 
+  if (showCampaignCreation && selectedAccount && callOnlyMode) {
+    return (
+      <CallOnlyCampaignForm
+        selectedAccount={{
+          id: selectedAccount.id,
+          name: selectedAccount.name,
+          currency: 'EUR',
+          timeZone: 'Europe/Amsterdam',
+          status: 'ENABLED'
+        }}
+        onSuccess={handleCampaignSuccess}
+        onError={handleCampaignError}
+        onBack={() => {
+          setShowCampaignCreation(false)
+          setSelectedAccount(null)
+          setAutoMode(false)
+          setCallOnlyMode(false)
+        }}
+      />
+    )
+  }
+
   if (showCampaignCreation && selectedAccount) {
     return (
       <CampaignCreationForm
@@ -127,6 +153,7 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
           setShowCampaignCreation(false)
           setSelectedAccount(null)
           setAutoMode(false)
+          setCallOnlyMode(false)
         }}
       />
     )
@@ -273,6 +300,7 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
                             onClick={() => {
                               setSelectedAccount(account)
                               setAutoMode(false)
+                              setCallOnlyMode(false)
                               setShowCampaignCreation(true)
                             }}
                           >
@@ -284,10 +312,23 @@ export default function ManualAccountLoader({ onBack }: ManualAccountLoaderProps
                             onClick={() => {
                               setSelectedAccount(account)
                               setAutoMode(true)
+                              setCallOnlyMode(false)
                               setShowCampaignCreation(true)
                             }}
                           >
                             Deploy (Auto URL Swap)
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedAccount(account)
+                              setAutoMode(false)
+                              setCallOnlyMode(true)
+                              setShowCampaignCreation(true)
+                            }}
+                          >
+                            <Phone className="h-4 w-4 mr-1" /> Call-Only
                           </Button>
                         </>
                       )}
