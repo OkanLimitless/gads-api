@@ -81,6 +81,17 @@ export default function SuspendedAccountsDetector({
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
   const [selectedToDelete, setSelectedToDelete] = useState<Set<string>>(new Set())
 
+  const buildPreferencesLink = (customerId: string) => {
+    const cleanCid = (customerId || '').replace(/[^0-9]/g, '')
+    const cleanMcc = (mccId || '').replace(/[^0-9]/g, '')
+    // Deep-link to the Preferences page for the specific customer.
+    // Extra parameters seen in Google emails (euid, __u, uscid) are session-specific
+    // and not required. ocid + __c reliably select the account context.
+    const params = new URLSearchParams({ ocid: cleanCid, __c: cleanCid, authuser: '0' })
+    if (cleanMcc) params.set('ascid', cleanMcc)
+    return `https://ads.google.com/aw/preferences?${params.toString()}`
+  }
+
   useEffect(() => {
     if (mccId) {
       detectSuspendedAccounts()
@@ -363,13 +374,16 @@ export default function SuspendedAccountsDetector({
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          onClick={() => window.open(`https://ads.google.com/aw/accounts?ocid=${account.id}`, '_blank')}
-                          variant="ghost"
-                          size="sm"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            onClick={() => window.open(buildPreferencesLink(account.id), '_blank')}
+                            variant="ghost"
+                            size="sm"
+                            title="Open Preferences"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -447,13 +461,16 @@ export default function SuspendedAccountsDetector({
                       <TableCell className="text-right">{account.currency} {account.last30DaysCost.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{account.currency} {account.yesterdayCost.toFixed(2)}</TableCell>
                       <TableCell>
-                        <Button
-                          onClick={() => window.open(`https://ads.google.com/aw/accounts?ocid=${account.id}`, '_blank')}
-                          variant="ghost"
-                          size="sm"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            onClick={() => window.open(buildPreferencesLink(account.id), '_blank')}
+                            variant="ghost"
+                            size="sm"
+                            title="Open Preferences"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
