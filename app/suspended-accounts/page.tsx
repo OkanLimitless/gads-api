@@ -87,9 +87,9 @@ export default function SuspendedAccountsPage() {
               Back to Dashboard
             </Button>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Suspended Account Detection</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Suspended/Canceled Account Detection</h1>
           <p className="text-gray-600 mt-2">
-            Detect and manage suspended client accounts under {mccName ? `${mccName} (${mccId})` : `MCC ${mccId}`}
+            Detect and manage suspended or canceled client accounts under {mccName ? `${mccName} (${mccId})` : `MCC ${mccId}`}
           </p>
         </div>
 
@@ -128,8 +128,8 @@ export default function SuspendedAccountsPage() {
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                <strong>Note:</strong> This tool identifies suspended accounts for your review. 
-                Any account removal must be done manually through the Google Ads interface.
+                <strong>Note:</strong> Google Ads API does not support reactivating canceled accounts programmatically. 
+                Please use the provided links to reopen accounts in the Google Ads interface.
               </AlertDescription>
             </Alert>
           </CardContent>
