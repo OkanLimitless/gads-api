@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, ArrowLeft, Target, Link2, Globe } from 'lucide-react'
+import { Loader2, ArrowLeft, Target, Link2, Globe, Download, Copy } from 'lucide-react'
 
 interface CampaignFinalUrlInfo {
   accountId: string
@@ -25,6 +25,7 @@ export default function FinalUrlsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [results, setResults] = useState<CampaignFinalUrlInfo[]>([])
+  const [exporting, setExporting] = useState(false)
 
   const fetchFinalUrls = async () => {
     setIsLoading(true)
@@ -114,7 +115,49 @@ export default function FinalUrlsPage() {
 
               {results.length > 0 && (
                 <div className="mt-6">
-                  <div className="text-sm text-gray-600 mb-2">{results.length} campaigns found</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm text-gray-600">{results.length} campaigns found</div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => {
+                        const allUrls = new Set<string>()
+                        results.forEach(r => (r.finalUrls || []).forEach(u => u && allUrls.add(u)))
+                        navigator.clipboard.writeText(Array.from(allUrls).join('\n'))
+                      }}>
+                        <Copy className="h-4 w-4 mr-2" /> Copy All URLs
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => {
+                        try {
+                          setExporting(true)
+                          const rows: string[] = []
+                          rows.push(['Account Name','Account ID','Campaign Name','Campaign ID','Budget (€)','Final URL'].join(','))
+                          results.forEach(item => {
+                            const urls = item.finalUrls && item.finalUrls.length ? item.finalUrls : ['']
+                            urls.forEach(url => {
+                              rows.push([
+                                `"${item.accountName.replaceAll('"','""')}"`,
+                                item.accountId,
+                                `"${item.campaignName.replaceAll('"','""')}"`,
+                                item.campaignId,
+                                item.budgetEuros.toFixed(2),
+                                `"${(url || '').replaceAll('"','""')}"`,
+                              ].join(','))
+                            })
+                          })
+                          const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = `final-urls-export.csv`
+                          a.click()
+                          URL.revokeObjectURL(url)
+                        } finally {
+                          setExporting(false)
+                        }
+                      }} disabled={exporting}>
+                        <Download className="h-4 w-4 mr-2" /> {exporting ? 'Exporting...' : 'Export CSV'}
+                      </Button>
+                    </div>
+                  </div>
                   <div className="overflow-auto border rounded">
                     <table className="min-w-full text-sm">
                       <thead className="bg-gray-100">

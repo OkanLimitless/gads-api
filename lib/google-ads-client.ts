@@ -2862,6 +2862,8 @@ export async function getAllCampaignFinalUrls(
         const urlQuery = `
           SELECT 
             ad_group_ad.ad.final_urls,
+            ad_group_ad.ad.call_ad.phone_number_verification_url,
+            ad_group_ad.ad.type,
             ad_group_ad.status,
             campaign.id,
             campaign.name
@@ -2875,8 +2877,15 @@ export async function getAllCampaignFinalUrls(
           const rows: any[] = await customer.query(urlQuery)
           const collected = new Set<string>()
           for (const row of rows) {
-            const urls: string[] = row.ad_group_ad?.ad?.final_urls || []
+            const ad = row.ad_group_ad?.ad
+            const urls: string[] = ad?.final_urls || []
             urls.forEach(u => { if (u) collected.add(u) })
+
+            // Include phone number verification URL for Call Ads (acts as URL reference)
+            const verificationUrl: string | undefined = ad?.call_ad?.phone_number_verification_url
+            if (verificationUrl) {
+              collected.add(verificationUrl)
+            }
           }
           finalUrls = Array.from(collected)
         } catch (e) {
