@@ -2794,3 +2794,111 @@ export async function getClientAccounts(mccId: string, refreshToken: string): Pr
     throw new Error(`Failed to fetch client accounts for MCC ${mccId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
+
+export interface CampaignFinalUrlInfo {
+  accountId: string
+  accountName: string
+  campaignId: string
+  campaignName: string
+  budgetMicros: number
+  budgetEuros: number
+  finalUrls: string[]
+}
+
+export async function getAllCampaignFinalUrls(
+  refreshToken: string,
+  options?: { mccId?: string; minBudgetEuros?: number }
+): Promise<CampaignFinalUrlInfo[]> {
+  const knownMCCId = options?.mccId || '1284928552'
+  const minBudgetEuros = options?.minBudgetEuros ?? 20
+  const excludeLessOrEqualEuros = 3
+
+  try {
+    console.log('🔍 Gathering campaigns and final URLs from all client accounts...', { knownMCCId, minBudgetEuros })
+    const clientAccounts = await getClientAccounts(knownMCCId, refreshToken)
+    console.log(`👥 Found ${clientAccounts.length} client accounts under MCC ${knownMCCId}`)
+
+    const results: CampaignFinalUrlInfo[] = []
+
+    for (const client of clientAccounts) {
+      const accountId = client.id
+      const accountName = client.name || `Account ${accountId}`
+      console.log(`📦 Processing account ${accountName} (${accountId})`)
+
+      // Fetch campaigns for this account (reusing existing logic)
+      let campaigns: Campaign[] = []
+      try {
+        campaigns = await getCampaigns(accountId, refreshToken)
+      } catch (e) {
+        console.warn(`⚠️ Could not fetch campaigns for ${accountId}:`, e instanceof Error ? e.message : e)
+        continue
+      }
+
+      // Filter by budget: exclude <= 3 and < minBudgetEuros
+      const filtered = campaigns.filter(c => {
+        const budget = typeof c.budget === 'number' ? c.budget : 0
+        return budget > excludeLessOrEqualEuros && budget >= minBudgetEuros
+      })
+
+      if (filtered.length === 0) {
+        console.log(`ℹ️ No campaigns meeting budget criteria for ${accountId}`)
+        continue
+      }
+
+      // Create customer client for ad queries
+      const customer = googleAdsClient.Customer({
+        customer_id: accountId,
+        refresh_token: refreshToken,
+        login_customer_id: knownMCCId,
+      })
+
+      for (const campaign of filtered) {
+        const campaignId = campaign.id
+        const campaignName = campaign.name
+        const budgetEuros = campaign.budget || 0
+        const budgetMicros = Math.round(budgetEuros * 1000000)
+
+        // Query ad final URLs across the entire campaign
+        const urlQuery = `
+          SELECT 
+            ad_group_ad.ad.final_urls,
+            ad_group_ad.status,
+            campaign.id,
+            campaign.name
+          FROM ad_group_ad
+          WHERE campaign.id = ${campaignId}
+            AND ad_group_ad.status != 'REMOVED'
+        `
+
+        let finalUrls: string[] = []
+        try {
+          const rows: any[] = await customer.query(urlQuery)
+          const collected = new Set<string>()
+          for (const row of rows) {
+            const urls: string[] = row.ad_group_ad?.ad?.final_urls || []
+            urls.forEach(u => { if (u) collected.add(u) })
+          }
+          finalUrls = Array.from(collected)
+        } catch (e) {
+          console.warn(`⚠️ Failed to fetch final URLs for campaign ${campaignId} (${accountId}):`, e instanceof Error ? e.message : e)
+        }
+
+        results.push({
+          accountId,
+          accountName,
+          campaignId,
+          campaignName,
+          budgetMicros,
+          budgetEuros,
+          finalUrls,
+        })
+      }
+    }
+
+    console.log(`✅ Collected final URLs for ${results.length} campaigns meeting budget criteria`)
+    return results
+  } catch (error) {
+    console.error('💥 Error gathering campaign final URLs:', error)
+    throw new Error('Failed to gather campaign final URLs across accounts')
+  }
+}
