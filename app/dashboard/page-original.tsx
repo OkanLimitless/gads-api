@@ -436,6 +436,25 @@ export default function Dashboard() {
                         </CardContent>
                       </Card>
                     </div>
+
+                    {/* Final URL Explorer */}
+                    <div className="col-span-1">
+                      <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-medium text-blue-900 mb-1">Final URL Explorer</h3>
+                              <p className="text-sm text-blue-700">Fetch final URLs across accounts, filtering by budget</p>
+                            </div>
+                            <Link href="/final-urls">
+                              <Button variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                                <Target className="h-4 w-4 mr-2" /> Open Tool
+                              </Button>
+                            </Link>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
