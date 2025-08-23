@@ -273,6 +273,25 @@ export default function SuspendedAccountsDetector({
         </CardContent>
       </Card>
 
+      {/* To Be Deleted simple list (spend>200 last 30d; 0 spend last 2 days) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>To-Be-Deleted Account IDs</CardTitle>
+          <CardDescription>Spent over 200 in last 30 days, zero spend yesterday and today</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.toBeDeletedAccounts.length > 0 ? (
+            <textarea
+              className="w-full h-48 p-3 border rounded font-mono text-sm"
+              readOnly
+              value={data.toBeDeletedAccounts.map(acc => acc.id).join('\n')}
+            />
+          ) : (
+            <div className="text-sm text-gray-600">No accounts matched the to-be-deleted criteria.</div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Keep summary minimal */}
       <Card>
         <CardHeader>
