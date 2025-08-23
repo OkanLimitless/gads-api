@@ -58,7 +58,6 @@ interface SuspendedAccountsResponse {
   summary: {
     totalSuspended: number
     suspended: number
-    canceled: number
     toBeDeleted: number
     detectedAt: string
   }
@@ -177,8 +176,6 @@ export default function SuspendedAccountsDetector({
     switch (status) {
       case 'SUSPENDED':
         return 'destructive' as const
-      case 'CANCELED':
-        return 'secondary' as const
       default:
         return 'outline' as const
     }
@@ -237,10 +234,10 @@ export default function SuspendedAccountsDetector({
             <div>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-500" />
-                Suspended Account Detection
+                Suspended Account IDs
               </CardTitle>
               <CardDescription>
-                Detect and manage suspended client accounts under MCC {mccId}
+                Newline-separated list for easy copy under MCC {mccId}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -258,13 +255,31 @@ export default function SuspendedAccountsDetector({
         </CardHeader>
       </Card>
 
-      {/* Summary */}
+      {/* Simple copy list */}
       <Card>
         <CardHeader>
-          <CardTitle>Detection Summary</CardTitle>
+          <CardTitle>Suspended Account IDs</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {data.suspendedAccounts.length > 0 ? (
+            <textarea
+              className="w-full h-64 p-3 border rounded font-mono text-sm"
+              readOnly
+              value={data.suspendedAccounts.map(acc => acc.id).join('\n')}
+            />
+          ) : (
+            <div className="text-sm text-gray-600">No suspended accounts found.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Keep summary minimal */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-red-50 rounded-lg">
               <div className="text-2xl font-bold text-red-600">{data.summary.totalSuspended}</div>
               <div className="text-sm text-gray-600">Total Suspended</div>
@@ -273,213 +288,14 @@ export default function SuspendedAccountsDetector({
               <div className="text-2xl font-bold text-orange-600">{data.summary.suspended}</div>
               <div className="text-sm text-gray-600">Suspended Status</div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-gray-600">{data.summary.canceled}</div>
-              <div className="text-sm text-gray-600">Canceled Status</div>
-            </div>
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">{data.summary.toBeDeleted}</div>
               <div className="text-sm text-gray-600">To Be Deleted</div>
             </div>
           </div>
-          
-          <Alert className="mt-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Recommendation:</strong> {data.recommendation}
-            </AlertDescription>
-          </Alert>
-
-          <p className="text-sm text-gray-500 mt-2">
-            Last detected: {new Date(data.summary.detectedAt).toLocaleString()}
-          </p>
+          <p className="text-sm text-gray-500 mt-2">Last detected: {new Date(data.summary.detectedAt).toLocaleString()}</p>
         </CardContent>
       </Card>
-
-      {/* Suspended Accounts Table */}
-      {data.suspendedAccounts.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Suspended Client Accounts</CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleSelectAll(selectedAccounts.size !== data.suspendedAccounts.length)}
-                  variant="outline"
-                  size="sm"
-                >
-                  {selectedAccounts.size === data.suspendedAccounts.length ? 'Deselect All' : 'Select All'}
-                </Button>
-
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">Select</TableHead>
-                  <TableHead>Account Name</TableHead>
-                  <TableHead>Account ID</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Currency</TableHead>
-                  <TableHead>Time Zone</TableHead>
-                  <TableHead>Test Account</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.suspendedAccounts.map((account) => {
-                  const details = getSuspensionDetails(account.id)
-                  const isSelected = selectedAccounts.has(account.id)
-
-                  return (
-                    <TableRow key={account.id}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => handleAccountSelection(account.id, e.target.checked)}
-                          className="rounded"
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{account.name}</TableCell>
-                      <TableCell className="font-mono text-sm">{account.id}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(account.status)}>
-                          {account.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{account.currency}</TableCell>
-                      <TableCell>{account.timeZone}</TableCell>
-                      <TableCell>
-                        {account.testAccount ? (
-                          <Badge variant="outline">Test</Badge>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {account.detectionReason || account.suspensionReason}
-                      </TableCell>
-                      <TableCell>
-                        {details?.error ? (
-                          <span className="text-xs text-red-600">Access limited</span>
-                        ) : details?.optimizationScore ? (
-                          <span className="text-xs">Opt: {details.optimizationScore}%</span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            onClick={() => window.open(buildPreferencesLink(account.id), '_blank')}
-                            variant="ghost"
-                            size="sm"
-                            title="Open Preferences"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="text-center py-12">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-green-900 mb-2">No Suspended Accounts Found</h3>
-            <p className="text-green-700">
-              Great! Your MCC {mccId} doesn't have any suspended or canceled client accounts.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* To Be Deleted Accounts Table */}
-      {data.toBeDeletedAccounts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>To Be Deleted Accounts</CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleSelectAllToDelete(selectedToDelete.size !== data.toBeDeletedAccounts.length)}
-                  variant="outline"
-                  size="sm"
-                >
-                  {selectedToDelete.size === data.toBeDeletedAccounts.length ? 'Deselect All' : 'Select All'}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">Select</TableHead>
-                  <TableHead>Account Name</TableHead>
-                  <TableHead>Account ID</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Currency</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead className="text-right">Last 30d Spend</TableHead>
-                  <TableHead className="text-right">Yesterday Spend</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.toBeDeletedAccounts.map((account) => {
-                  const isSelected = selectedToDelete.has(account.id)
-                  return (
-                    <TableRow key={account.id}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => handleToDeleteSelection(account.id, e.target.checked)}
-                          className="rounded"
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{account.name}</TableCell>
-                      <TableCell className="font-mono text-sm">{account.id}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(account.status)}>
-                          {account.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{account.currency}</TableCell>
-                      <TableCell>{account.detectionReason}</TableCell>
-                      <TableCell className="text-right">{account.currency} {account.last30DaysCost.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{account.currency} {account.yesterdayCost.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            onClick={() => window.open(buildPreferencesLink(account.id), '_blank')}
-                            variant="ghost"
-                            size="sm"
-                            title="Open Preferences"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

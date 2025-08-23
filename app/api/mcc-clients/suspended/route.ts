@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       FROM customer_client
       WHERE customer_client.level = 1
       AND customer_client.manager = false
-      AND customer_client.status != 'ENABLED'
+      AND customer_client.status = 'SUSPENDED'
     `
 
     console.log(`🚨 Querying suspended client accounts for MCC ${mccId}...`)
@@ -110,14 +110,10 @@ export async function GET(request: NextRequest) {
         isSuspended: status !== 'ENABLED',
         suspensionReason: status === 'SUSPENDED' 
           ? 'Account Suspended' 
-          : status === 'CANCELED' 
-          ? 'Account Canceled' 
           : 'Account Not Enabled',
         detectedAt: new Date().toISOString(),
         detectionReason: status === 'SUSPENDED' 
           ? 'Account Suspended' 
-          : status === 'CANCELED' 
-          ? 'Account Canceled' 
           : 'Account Not Enabled'
       }
     })
@@ -283,7 +279,6 @@ export async function GET(request: NextRequest) {
       summary: {
         totalSuspended: suspendedAccounts.length,
         suspended: suspendedAccounts.filter(acc => acc.status === 'SUSPENDED').length,
-        canceled: suspendedAccounts.filter(acc => acc.status === 'CANCELED').length,
         toBeDeleted: toBeDeletedAccounts.length,
         detectedAt: new Date().toISOString()
       },
