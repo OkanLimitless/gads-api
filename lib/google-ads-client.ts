@@ -2956,8 +2956,7 @@ export async function createCustomerClientUnderMcc(
   const timeZone = options?.timeZone || 'Europe/Amsterdam'
   const testAccount = options?.testAccount ?? false
 
-  const url = `https://googleads.googleapis.com/v17/customers/${encodeURIComponent(mccId)}:createCustomerClient`
-
+  const versions = ['v19', 'v18', 'v17']
   const payload = {
     customerClient: {
       descriptiveName,
@@ -2967,38 +2966,45 @@ export async function createCustomerClientUnderMcc(
     },
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
-      'login-customer-id': mccId,
-    },
-    body: JSON.stringify(payload),
-  })
+  let lastError: Error | null = null
 
-  const text = await response.text()
-  let json: any
-  try {
-    json = text ? JSON.parse(text) : {}
-  } catch (e) {
-    console.error('Failed to parse createCustomerClient response:', text)
-    throw new Error('Invalid response from Google Ads API when creating customer client')
+  for (const version of versions) {
+    const url = `https://googleads.googleapis.com/${version}/customers/${encodeURIComponent(mccId)}:createCustomerClient`
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+          'login-customer-id': mccId,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const contentType = response.headers.get('content-type') || ''
+      const isJson = contentType.includes('application/json')
+      const text = await response.text()
+      const json = isJson && text ? (() => { try { return JSON.parse(text) } catch { return null } })() : null
+
+      if (!response.ok) {
+        const message = json?.error?.message || text || `HTTP ${response.status}`
+        throw new Error(`Google Ads API ${version} error: ${message}`)
+      }
+
+      const resourceName: string | undefined = json?.resourceName || json?.resource_name
+      if (!resourceName) {
+        throw new Error(`Google Ads API ${version} returned success but no resourceName`)
+      }
+      const parts = resourceName.split('/')
+      const customerId = parts[1] || resourceName
+      return { customerId, resourceName }
+    } catch (e: any) {
+      lastError = e instanceof Error ? e : new Error(String(e))
+      console.error(`CreateCustomerClient failed on ${version}:`, lastError.message)
+      continue
+    }
   }
 
-  if (!response.ok) {
-    console.error('CreateCustomerClient error:', json)
-    const message = json?.error?.message || JSON.stringify(json)
-    throw new Error(`Failed to create customer client under MCC ${mccId}: ${message}`)
-  }
-
-  const resourceName: string = json?.resourceName || json?.resource_name
-  if (!resourceName) {
-    console.error('CreateCustomerClient success but no resourceName in response:', json)
-    throw new Error('CreateCustomerClient did not return a resourceName')
-  }
-  const parts = resourceName.split('/')
-  const customerId = parts[1] || resourceName
-  return { customerId, resourceName }
+  throw new Error(lastError?.message || 'CreateCustomerClient failed for all versions')
 }
