@@ -511,7 +511,7 @@ export default function Dashboard() {
                             <div className="flex items-center justify-between">
                               <div>
                                 <h4 className="font-medium text-green-900 mb-1">Create Account (API)</h4>
-                                <p className="text-sm text-green-700">Create a new client account under an MCC</p>
+                                <p className="text-sm text-green-700">Create one or many client accounts under MCC 1284928552</p>
                               </div>
                               <Link href="/create-account">
                                 <Button variant="outline" className="border-green-300 text-green-700 hover:bg-green-100">
