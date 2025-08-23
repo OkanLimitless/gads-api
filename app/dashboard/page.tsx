@@ -504,6 +504,23 @@ export default function Dashboard() {
                             </div>
                           </CardContent>
                         </Card>
+
+                        {/* Create Account (API) */}
+                        <Card className="border-green-200 bg-green-50 hover:bg-green-100 transition-colors">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-green-900 mb-1">Create Account (API)</h4>
+                                <p className="text-sm text-green-700">Create a new client account under an MCC</p>
+                              </div>
+                              <Link href="/create-account">
+                                <Button variant="outline" className="border-green-300 text-green-700 hover:bg-green-100">
+                                  <Target className="h-4 w-4 mr-2" /> Open Tool
+                                </Button>
+                              </Link>
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
                     </div>
                   </>

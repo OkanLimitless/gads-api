@@ -2911,3 +2911,94 @@ export async function getAllCampaignFinalUrls(
     throw new Error('Failed to gather campaign final URLs across accounts')
   }
 }
+
+export async function createAccessTokenFromRefreshToken(refreshToken: string): Promise<string> {
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
+    client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+  })
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Access token refresh failed:', response.status, errorText)
+    throw new Error(`Access token refresh failed: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  if (!data.access_token) {
+    throw new Error('No access_token returned when refreshing token')
+  }
+  return data.access_token as string
+}
+
+export async function createCustomerClientUnderMcc(
+  mccId: string,
+  refreshToken: string,
+  options?: {
+    descriptiveName?: string
+    currencyCode?: string
+    timeZone?: string
+    testAccount?: boolean
+  }
+): Promise<{ customerId: string; resourceName: string }> {
+  const accessToken = await createAccessTokenFromRefreshToken(refreshToken)
+
+  const descriptiveName = options?.descriptiveName || `Client ${new Date().toISOString()}`
+  const currencyCode = options?.currencyCode || 'EUR'
+  const timeZone = options?.timeZone || 'Europe/Amsterdam'
+  const testAccount = options?.testAccount ?? false
+
+  const url = `https://googleads.googleapis.com/v17/customers/${encodeURIComponent(mccId)}:createCustomerClient`
+
+  const payload = {
+    customerClient: {
+      descriptiveName,
+      currencyCode,
+      timeZone,
+      testAccount,
+    },
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+      'login-customer-id': mccId,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const text = await response.text()
+  let json: any
+  try {
+    json = text ? JSON.parse(text) : {}
+  } catch (e) {
+    console.error('Failed to parse createCustomerClient response:', text)
+    throw new Error('Invalid response from Google Ads API when creating customer client')
+  }
+
+  if (!response.ok) {
+    console.error('CreateCustomerClient error:', json)
+    const message = json?.error?.message || JSON.stringify(json)
+    throw new Error(`Failed to create customer client under MCC ${mccId}: ${message}`)
+  }
+
+  const resourceName: string = json?.resourceName || json?.resource_name
+  if (!resourceName) {
+    console.error('CreateCustomerClient success but no resourceName in response:', json)
+    throw new Error('CreateCustomerClient did not return a resourceName')
+  }
+  const parts = resourceName.split('/')
+  const customerId = parts[1] || resourceName
+  return { customerId, resourceName }
+}
