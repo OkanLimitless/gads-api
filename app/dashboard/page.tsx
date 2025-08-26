@@ -13,6 +13,7 @@ import DummyCampaignManager from '@/components/DummyCampaignManager'
 import TemplateManager from '@/components/TemplateManager'
 import ManualAccountLoader from '@/components/ManualAccountLoader'
 import UnifiedTemplateManager from '@/components/UnifiedTemplateManager'
+import BulkDeployWizard from '@/components/BulkDeployWizard'
 
 
 interface AdAccount {
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string>('')
   const [step, setStep] = useState<'mcc-selection' | 'client-selection' | 'campaign-creation' | 'dummy-campaigns' | 'template-manager' | 'manual-accounts' | 'unified-templates'>('mcc-selection')
   const [creationMode, setCreationMode] = useState<'search' | 'call-only'>('search')
+  const [showBulkWizard, setShowBulkWizard] = useState(false)
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -561,42 +563,55 @@ export default function Dashboard() {
                     <span>Loading client accounts...</span>
                   </div>
                 ) : clientAccounts.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {clientAccounts.map((account) => (
-                      <div
-                        key={account.id}
-                        className="p-4 border rounded-lg cursor-pointer hover:border-green-300 hover:bg-green-50 transition-colors"
-                        onClick={() => handleClientSelection(account.id)}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="font-medium">{account.name}</div>
-                          <div className="flex items-center space-x-1">
-                            <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                              CLIENT
-                            </span>
-                            {account.testAccount && (
-                              <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">
-                                Test
-                              </span>
+                  <>
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="text-sm text-gray-600">{clientAccounts.length} account(s) ready</div>
+                      <Button variant="outline" onClick={() => setShowBulkWizard(true)}>Bulk Deploy from Template</Button>
+                    </div>
+                    {showBulkWizard ? (
+                      <BulkDeployWizard
+                        readyAccounts={clientAccounts.map(a => ({ id: a.id, name: a.name, testAccount: a.testAccount }))}
+                        onBack={() => setShowBulkWizard(false)}
+                      />
+                    ) : (
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {clientAccounts.map((account) => (
+                          <div
+                            key={account.id}
+                            className="p-4 border rounded-lg cursor-pointer hover:border-green-300 hover:bg-green-50 transition-colors"
+                            onClick={() => handleClientSelection(account.id)}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="font-medium">{account.name}</div>
+                              <div className="flex items-center space-x-1">
+                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                  CLIENT
+                                </span>
+                                {account.testAccount && (
+                                  <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">
+                                    Test
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              ID: {account.id}
+                            </div>
+                            {account.dummyPerformance && (
+                              <div className="mt-2 p-2 bg-green-50 rounded text-sm">
+                                <div className="font-medium text-green-800">
+                                  €{account.dummyPerformance.totalSpentLast7Days.toFixed(2)} spent (7 days)
+                                </div>
+                                <div className="text-green-600 text-xs">
+                                  {account.dummyPerformance.campaignCount} dummy campaign{account.dummyPerformance.campaignCount !== 1 ? 's' : ''}
+                                </div>
+                              </div>
                             )}
                           </div>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          ID: {account.id}
-                        </div>
-                        {account.dummyPerformance && (
-                          <div className="mt-2 p-2 bg-green-50 rounded text-sm">
-                            <div className="font-medium text-green-800">
-                              €{account.dummyPerformance.totalSpentLast7Days.toFixed(2)} spent (7 days)
-                            </div>
-                            <div className="text-green-600 text-xs">
-                              {account.dummyPerformance.campaignCount} dummy campaign{account.dummyPerformance.campaignCount !== 1 ? 's' : ''}
-                            </div>
-                          </div>
-                        )}
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
