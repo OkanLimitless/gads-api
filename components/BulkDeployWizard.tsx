@@ -98,7 +98,7 @@ export default function BulkDeployWizard({ readyAccounts, onBack }: BulkDeployWi
           templateId: selectedTemplateId,
           overrides: {
             deviceTargeting,
-            adScheduleTemplateId: adScheduleTemplateId || undefined,
+            adScheduleTemplateId: adScheduleTemplateId === 'default' ? undefined : adScheduleTemplateId,
           },
           items,
         })
@@ -188,7 +188,7 @@ export default function BulkDeployWizard({ readyAccounts, onBack }: BulkDeployWi
                   <SelectValue placeholder="Use template default" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Use template default</SelectItem>
+                  <SelectItem value="default">Use template default</SelectItem>
                   <SelectItem value="est_business_hours">EST Business Hours</SelectItem>
                   <SelectItem value="amsterdam_evening_rush">Amsterdam Evening Rush</SelectItem>
                   <SelectItem value="energie">Energie (10:00-20:30 Mon-Fri)</SelectItem>
