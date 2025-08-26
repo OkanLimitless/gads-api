@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const baseCampaign = {
       // Name will be set per-item
       budgetAmountMicros: Math.round((tpl.budget || 10) * 1_000_000),
-      biddingStrategy: undefined as string | undefined,
+      biddingStrategy: 'MAXIMIZE_CONVERSIONS' as const,
       campaignType: 'SEARCH',
       startDate: undefined as string | undefined,
       endDate: undefined as string | undefined,
