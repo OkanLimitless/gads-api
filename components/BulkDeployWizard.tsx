@@ -82,7 +82,7 @@ export default function BulkDeployWizard({ readyAccounts, onBack }: BulkDeployWi
   const onSubmit = async () => {
     setSubmitting(true)
     setError(null)
-    setResults(null)
+    setResults([])
 
     try {
       let accounts: string[] = selectedList
@@ -90,32 +90,46 @@ export default function BulkDeployWizard({ readyAccounts, onBack }: BulkDeployWi
         accounts = readyAccounts.slice(0, n).map(a => a.id)
       }
       const items = accounts.map((customerId, idx) => ({ customerId, finalUrl: parsedUrls[idx] }))
-
-      const res = await fetch('/api/campaigns/bulk-deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateId: selectedTemplateId,
-          overrides: {
-            deviceTargeting,
-            adScheduleTemplateId: adScheduleTemplateId === 'default' ? undefined : adScheduleTemplateId,
-          },
-          items,
+      // Chunk items to avoid long-running single requests (e.g., chunks of 3)
+      const chunkSize = 3
+      const aggregate: Array<{ customerId: string; success: boolean; campaignId?: string; error?: string }> = []
+      for (let i = 0; i < items.length; i += chunkSize) {
+        const chunk = items.slice(i, i + chunkSize)
+        const res = await fetch('/api/campaigns/bulk-deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateId: selectedTemplateId,
+            overrides: {
+              deviceTargeting,
+              adScheduleTemplateId: adScheduleTemplateId === 'default' ? undefined : adScheduleTemplateId,
+            },
+            items: chunk,
+          })
         })
-      })
-      const data = await res.json()
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Bulk deploy failed')
+
+        const contentType = res.headers.get('content-type') || ''
+        const isJson = contentType.includes('application/json')
+        const payload = isJson ? await res.json() : { error: await res.text() }
+
+        if (!res.ok || !payload.success) {
+          const errMsg = typeof payload.error === 'string' ? payload.error : JSON.stringify(payload.error || payload)
+          throw new Error(errMsg || 'Bulk deploy failed')
+        }
+        const partial = Array.isArray(payload.results) ? payload.results : []
+        aggregate.push(...partial)
+        setResults([...aggregate])
       }
-      setResults(data.results || [])
+      // done
     } catch (e: any) {
-      setError(e?.message || 'Bulk deploy failed')
+      const msg = typeof e?.message === 'string' ? e.message : JSON.stringify(e)
+      setError(msg || 'Bulk deploy failed')
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (results) {
+  if (results && results.length > 0) {
     const ok = results.filter(r => r.success).length
     const fail = results.length - ok
     return (
