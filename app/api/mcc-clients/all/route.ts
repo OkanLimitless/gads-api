@@ -83,12 +83,16 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Exclude hidden and canceled accounts from results
+    const hiddenIds = new Set(['6575141691', '5299881560'])
+    const visibleClientAccounts = clientAccounts.filter(acc => !hiddenIds.has(acc.id))
+
     console.log(`✅ Found ${clientAccounts.length} total client accounts for MCC ${mccId}`)
     
     // Group accounts by status for easy filtering
-    const enabledAccounts = clientAccounts.filter(acc => acc.status === 'ENABLED')
-    const suspendedAccounts = clientAccounts.filter(acc => acc.isSuspended)
-    const otherAccounts = clientAccounts.filter(acc => !acc.isSuspended && acc.status !== 'ENABLED')
+    const enabledAccounts = visibleClientAccounts.filter(acc => acc.status === 'ENABLED')
+    const suspendedAccounts = visibleClientAccounts.filter(acc => acc.isSuspended)
+    const otherAccounts = visibleClientAccounts.filter(acc => !acc.isSuspended && acc.status !== 'ENABLED')
 
     console.log(`📊 Account Status Summary:`)
     console.log(`  - Enabled: ${enabledAccounts.length}`)
@@ -97,9 +101,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      accounts: clientAccounts,
+      accounts: visibleClientAccounts,
       summary: {
-        total: clientAccounts.length,
+        total: visibleClientAccounts.length,
         enabled: enabledAccounts.length,
         suspended: suspendedAccounts.length,
         other: otherAccounts.length

@@ -31,6 +31,11 @@ export type CacheMeta = {
 	counts?: Record<string, number>
 }
 
+export const HIDDEN_ACCOUNT_IDS = [
+	'6575141691',
+	'5299881560',
+]
+
 export async function getCollections() {
 	const db = await getDatabase()
 	const accounts = db.collection<CachedAccount>('mcc_cached_accounts')

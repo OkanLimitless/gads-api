@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../../auth/[...nextauth]/route'
 import { GoogleAdsApi } from 'google-ads-api'
-import { upsertAccounts, setMeta } from '@/lib/mcc-cache'
+import { upsertAccounts, setMeta, HIDDEN_ACCOUNT_IDS } from '@/lib/mcc-cache'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -84,13 +84,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    await upsertAccounts(mccId, cachedRows)
+    const filteredRows = cachedRows.filter(r => !HIDDEN_ACCOUNT_IDS.includes(r.accountId))
+    await upsertAccounts(mccId, filteredRows)
 
     const counts = {
-      total: cachedRows.length,
-      suspended: cachedRows.filter(x => x.isSuspended).length,
-      canceled: cachedRows.filter(x => x.isCanceled).length,
-      enabled: cachedRows.filter(x => x.status === 'ENABLED').length,
+      total: filteredRows.length,
+      suspended: filteredRows.filter(x => x.isSuspended).length,
+      canceled: filteredRows.filter(x => x.isCanceled).length,
+      enabled: filteredRows.filter(x => x.status === 'ENABLED').length,
     }
 
     await setMeta(mccId, 'suspended', { status: 'complete', completedAt: new Date().toISOString(), counts })

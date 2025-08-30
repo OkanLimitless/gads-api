@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
           : 'Account Not Enabled'
       }
     })
-    .filter((account: any) => !excludedAccountIds.includes(account.id) && account.status !== 'CANCELED')
+    .filter((account: any) => !excludedAccountIds.includes(account.id) && account.status !== 'CANCELED' && !['6575141691','5299881560'].includes(account.id))
 
     // Get additional details about why accounts might be suspended
     let suspensionDetails = []

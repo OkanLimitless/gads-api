@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { GoogleAdsApi } from 'google-ads-api'
 import { getCampaigns, getCampaignCount } from '@/lib/google-ads-client'
-import { getAllFromCache } from '@/lib/mcc-cache'
+import { getAllFromCache, HIDDEN_ACCOUNT_IDS } from '@/lib/mcc-cache'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Prefer cached accounts for speed
-    const cachedAccounts = (await getAllFromCache(mccId)).filter(a => a.status !== 'CANCELED')
+    const cachedAccounts = (await getAllFromCache(mccId)).filter(a => a.status !== 'CANCELED' && !HIDDEN_ACCOUNT_IDS.includes(a.accountId))
     let clientAccounts = cachedAccounts
       .filter(a => !hiddenAccountIds.includes(a.accountId))
       .map(a => ({
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
             accountType: 'CLIENT' as const,
           }
         })
-        .filter(account => !hiddenAccountIds.includes(account.id) && account.status !== 'CANCELED')
+        .filter(account => !hiddenAccountIds.includes(account.id) && account.status !== 'CANCELED' && !HIDDEN_ACCOUNT_IDS.includes(account.id))
     }
 
     console.log(`🔍 Using cached campaign counts for ${clientAccounts.length} accounts (will refresh in background)...`)

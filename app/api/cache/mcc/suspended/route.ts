@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../auth/[...nextauth]/route'
-import { getMeta, getSuspendedFromCache } from '@/lib/mcc-cache'
+import { getMeta, getSuspendedFromCache, HIDDEN_ACCOUNT_IDS } from '@/lib/mcc-cache'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     if (!mccId) return NextResponse.json({ error: 'MCC ID is required' }, { status: 400 })
 
     const meta = await getMeta(mccId, 'suspended')
-    const suspendedAccounts = (await getSuspendedFromCache(mccId)).filter(a => !a.isCanceled)
+    const suspendedAccounts = (await getSuspendedFromCache(mccId)).filter(a => !a.isCanceled && !HIDDEN_ACCOUNT_IDS.includes(a.accountId))
 
     return NextResponse.json({
       success: true,
