@@ -10,6 +10,7 @@ export type CachedAccount = {
 	testAccount: boolean
 	level: number
 	isSuspended: boolean
+	isCanceled?: boolean
 	last30DaysCost?: number
 	yesterdayCost?: number
 	todayCost?: number

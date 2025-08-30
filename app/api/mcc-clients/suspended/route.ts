@@ -107,7 +107,8 @@ export async function GET(request: NextRequest) {
         managerCustomerId: mccId,
         level: client.level || 1,
         accountType: 'CLIENT' as const,
-        isSuspended: status !== 'ENABLED',
+        isSuspended: status === 'SUSPENDED',
+        isCanceled: status === 'CANCELED',
         suspensionReason: status === 'SUSPENDED' 
           ? 'Account Suspended' 
           : 'Account Not Enabled',
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
           : 'Account Not Enabled'
       }
     })
-    .filter((account: any) => !excludedAccountIds.includes(account.id))
+    .filter((account: any) => !excludedAccountIds.includes(account.id) && account.status !== 'CANCELED')
 
     // Get additional details about why accounts might be suspended
     let suspensionDetails = []

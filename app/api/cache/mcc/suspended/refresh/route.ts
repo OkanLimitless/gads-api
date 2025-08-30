@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
         status: statusText,
         testAccount: c.test_account || false,
         level: c.level || 1,
-        isSuspended: statusText === 'SUSPENDED' || statusText === 'CANCELED',
+        isSuspended: statusText === 'SUSPENDED',
+        isCanceled: statusText === 'CANCELED',
       }
     })
 
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
     const counts = {
       total: cachedRows.length,
       suspended: cachedRows.filter(x => x.isSuspended).length,
+      canceled: cachedRows.filter(x => x.isCanceled).length,
       enabled: cachedRows.filter(x => x.status === 'ENABLED').length,
     }
 

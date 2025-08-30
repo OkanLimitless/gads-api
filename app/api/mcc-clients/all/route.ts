@@ -78,7 +78,8 @@ export async function GET(request: NextRequest) {
         managerCustomerId: mccId,
         level: client.level || 1,
         accountType: 'CLIENT' as const,
-        isSuspended: status === 'SUSPENDED' || status === 'CANCELED',
+        isSuspended: status === 'SUSPENDED',
+        isCanceled: status === 'CANCELED',
       }
     })
 

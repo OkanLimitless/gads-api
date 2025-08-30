@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     if (!mccId) return NextResponse.json({ error: 'MCC ID is required' }, { status: 400 })
 
     const meta = await getMeta(mccId, 'suspended')
-    const suspendedAccounts = await getSuspendedFromCache(mccId)
+    const suspendedAccounts = (await getSuspendedFromCache(mccId)).filter(a => !a.isCanceled)
 
     return NextResponse.json({
       success: true,

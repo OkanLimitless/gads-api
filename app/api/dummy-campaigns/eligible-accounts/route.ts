@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Prefer cached accounts for speed
-    const cachedAccounts = await getAllFromCache(mccId)
+    const cachedAccounts = (await getAllFromCache(mccId)).filter(a => a.status !== 'CANCELED')
     let clientAccounts = cachedAccounts
       .filter(a => !hiddenAccountIds.includes(a.accountId))
       .map(a => ({
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
             accountType: 'CLIENT' as const,
           }
         })
-        .filter(account => !hiddenAccountIds.includes(account.id))
+        .filter(account => !hiddenAccountIds.includes(account.id) && account.status !== 'CANCELED')
     }
 
     console.log(`🔍 Using cached campaign counts for ${clientAccounts.length} accounts (will refresh in background)...`)
