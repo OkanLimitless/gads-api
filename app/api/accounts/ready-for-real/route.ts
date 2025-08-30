@@ -44,30 +44,26 @@ export async function GET(request: NextRequest) {
     readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken, { useCacheCounts: true, mccId: knownMCCId })
     
     // Filter out accounts that are no longer available in the MCC (suspended/removed accounts)
-    // Consider only accounts that exist in MCC and are ENABLED
-    const enabledAccountIds = new Set(
-      clientAccounts.filter(acc => (acc as any).status === 'ENABLED').map(acc => acc.id)
-    )
+    // Consider only accounts that exist in current MCC (allow any status for visibility)
+    const mccIds = new Set(clientAccounts.map(acc => acc.id))
     const availableReadyAccounts = readyAccounts.filter(readyAccount => {
-      const inMcc = clientAccounts.some(acc => acc.id === readyAccount.accountId)
-      const isEnabled = enabledAccountIds.has(readyAccount.accountId)
+      const inMcc = mccIds.has(readyAccount.accountId)
       if (!inMcc) {
         console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not found in MCC (likely suspended/removed)`)      
-      } else if (!isEnabled) {
-        console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not ENABLED status`)      
       }
-      return inMcc && isEnabled
+      return inMcc
     })
     
     console.log(`🔍 Filtered accounts: ${availableReadyAccounts.length}/${readyAccounts.length} accounts are still available in MCC`)
     
     // Enrich with account names from Google Ads
     const enrichedAccounts = availableReadyAccounts.map(readyAccount => {
-      const gadsAccount = clientAccounts.find(acc => acc.id === readyAccount.accountId)
+      const gadsAccount = clientAccounts.find(acc => acc.id === readyAccount.accountId) as any
       return {
         ...readyAccount,
         accountName: gadsAccount?.name || `Account ${readyAccount.accountId}`,
-        descriptiveName: gadsAccount?.descriptive_name || gadsAccount?.name || `Account ${readyAccount.accountId}`
+        descriptiveName: gadsAccount?.descriptive_name || gadsAccount?.name || `Account ${readyAccount.accountId}`,
+        status: gadsAccount?.status || 'UNKNOWN',
       }
     })
 
