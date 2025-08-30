@@ -11,6 +11,8 @@ export type CachedAccount = {
 	level: number
 	isSuspended: boolean
 	isCanceled?: boolean
+	hasRealCampaignOver20?: boolean
+	lastRealCheckAt?: string
 	last30DaysCost?: number
 	yesterdayCost?: number
 	todayCost?: number

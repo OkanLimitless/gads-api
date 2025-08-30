@@ -59,42 +59,11 @@ export async function GET(request: NextRequest) {
       return inMcc && isEnabled
     })
 
-    // Filter out accounts that already have a real campaign (budget > 20 EUR/day)
-    // We will check non-dummy campaigns only, with concurrency limiting
+    // Prefer cached real-over-20 flag; trigger background refresh if missing
     const candidates = availableReadyAccounts
-    const concurrency = 8
-    const queue = [...candidates]
-    const allowList: typeof candidates = []
-    let inFlight = 0
-    const runNext = async (): Promise<void> => {
-      if (queue.length === 0) return
-      if (inFlight >= concurrency) return
-      const account = queue.shift()!
-      inFlight++
-      ;(async () => {
-        try {
-          const allCampaigns = await getCampaigns(account.accountId, session.refreshToken!)
-          const dummyIds = new Set(account.dummyCampaigns.map(dc => dc.campaignId))
-          const hasRealOver20 = allCampaigns.some(c => !dummyIds.has(c.id) && (typeof c.budget === 'number') && c.budget > 20)
-          if (!hasRealOver20) {
-            allowList.push(account)
-          } else {
-            console.log(`❌ Excluding ${account.accountId}: found real campaign > €20/day`)
-          }
-        } catch (e) {
-          // On error, keep the account to avoid false negatives
-          console.warn(`⚠️ Could not check campaigns for ${account.accountId}, allowing by default:`, e instanceof Error ? e.message : String(e))
-          allowList.push(account)
-        } finally {
-          inFlight--
-          await runNext()
-        }
-      })()
-      if (inFlight < concurrency && queue.length > 0) await runNext()
-    }
-    const starters = Math.min(concurrency, queue.length)
-    await Promise.all(new Array(starters).fill(0).map(() => runNext()))
-    while (inFlight > 0) { await new Promise(r => setTimeout(r, 50)) }
+    const allowList = candidates.filter(a => (a as any).hasRealCampaignOver20 !== true)
+    // Kick background refresh
+    fetch(`/api/cache/mcc/real-over20/refresh?mccId=${knownMCCId}`, { method: 'POST' }).catch(() => {})
     
     console.log(`🔍 Filtered accounts: ${availableReadyAccounts.length}/${readyAccounts.length} accounts are still available in MCC`)
     
