@@ -99,17 +99,51 @@ export async function GET(request: NextRequest) {
         .filter(account => !hiddenAccountIds.includes(account.id))
     }
 
-    console.log(`🔍 Checking campaign counts for ${clientAccounts.length} accounts...`)
+    console.log(`🔍 Using cached campaign counts for ${clientAccounts.length} accounts (will refresh in background)...`)
 
     // Use cached counts if present; otherwise skip to keep it fast and trigger background refresh
     const eligibleAccounts = [] as any[]
     const accountResults = [] as any[]
-    for (const account of clientAccounts) {
-      const campaignCount = typeof account.campaignCount === 'number' ? account.campaignCount : undefined
-      if (campaignCount === undefined) continue
+    const withCounts = clientAccounts.filter(a => typeof a.campaignCount === 'number')
+    const withoutCounts = clientAccounts.filter(a => typeof a.campaignCount !== 'number')
+
+    for (const account of withCounts) {
+      const campaignCount = account.campaignCount as number
       const ok = campaignCount === 0
       accountResults.push({ accountId: account.id, accountName: account.name, campaignCount, status: 'cached', eligible: ok })
-      if (ok) eligibleAccounts.push({ ...account, campaignCount: 0 })
+      if (ok) eligibleAccounts.push({ ...account, campaignCount })
+    }
+
+    // Fast fallback: if no cached counts exist yet, sample a limited subset with concurrency
+    if (withCounts.length === 0 && withoutCounts.length > 0) {
+      console.log(`⚠️ No cached campaign counts found. Sampling up to 40 accounts live with limited concurrency...`)
+      const sample = withoutCounts.slice(0, 40)
+      const concurrency = 6
+      let inFlight = 0
+      const queue = [...sample]
+      const runNext = async (): Promise<void> => {
+        if (queue.length === 0) return
+        if (inFlight >= concurrency) return
+        const acc = queue.shift()!
+        inFlight++
+        ;(async () => {
+          try {
+            const count = await getCampaignCount(acc.id, session.refreshToken)
+            const ok = count === 0
+            accountResults.push({ accountId: acc.id, accountName: acc.name, campaignCount: count, status: 'live', eligible: ok })
+            if (ok) eligibleAccounts.push({ ...acc, campaignCount: 0 })
+          } catch (e) {
+            accountResults.push({ accountId: acc.id, accountName: acc.name, campaignCount: -1, status: 'error', eligible: false, error: e instanceof Error ? e.message : String(e) })
+          } finally {
+            inFlight--
+            await runNext()
+          }
+        })()
+        if (inFlight < concurrency && queue.length > 0) await runNext()
+      }
+      const starters = Math.min(concurrency, queue.length)
+      await Promise.all(new Array(starters).fill(0).map(() => runNext()))
+      while (inFlight > 0) { await new Promise(r => setTimeout(r, 100)) }
     }
 
     // Fire-and-forget background refresh of counts
