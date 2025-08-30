@@ -39,9 +39,9 @@ export async function GET(request: NextRequest) {
       console.log(`✅ Cleanup completed: removed ${cleanupResult.removedCampaigns} campaigns from ${cleanupResult.affectedAccounts.length} stale accounts`)
     }
 
-    // Get accounts that are ready for real campaigns (with real campaign filtering)
-    // Start from ready dummy campaigns (precomputed); we'll do precise filtering below
-    readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken, { useCacheCounts: false, mccId: knownMCCId })
+    // Get accounts that are ready for real campaigns based on tracked dummy spend only (no live GAQL)
+    // Do not pass refreshToken here to avoid per-account campaign checks inside this helper
+    readyAccounts = await getAccountsReadyForRealCampaigns(undefined)
     
     // Filter out accounts that are no longer available in the MCC (suspended/removed accounts)
     // Map account statuses and ensure ENABLED only
