@@ -2,5 +2,9 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "crons": [
+    { "path": "/api/cache/mcc/suspended/refresh?mccId=1284928552", "schedule": "*/30 * * * *" },
+    { "path": "/api/cache/mcc/campaign-counts/refresh?mccId=1284928552", "schedule": "0 * * * *" }
+  ]
 }

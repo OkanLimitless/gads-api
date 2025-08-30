@@ -15,6 +15,9 @@ export type CachedAccount = {
 	todayCost?: number
 	detectedAt?: string
 	detectionReason?: string
+	// cached campaign info
+	campaignCount?: number
+	campaignCountUpdatedAt?: string
 }
 
 export type CacheMeta = {

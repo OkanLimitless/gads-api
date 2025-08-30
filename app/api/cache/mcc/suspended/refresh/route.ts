@@ -92,3 +92,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function GET(request: NextRequest) {
+  // Allow cron to trigger refresh via GET for convenience
+  return POST(request)
+}
+
