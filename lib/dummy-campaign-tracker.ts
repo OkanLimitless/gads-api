@@ -150,7 +150,7 @@ export async function updateDummyCampaignPerformance(
 // Get accounts that are ready for real campaigns (have high-spending dummy campaigns but NO real campaigns)
 import { getAllFromCache } from './mcc-cache'
 
-export async function getAccountsReadyForRealCampaigns(refreshToken?: string, options?: { useCacheCounts?: boolean; mccId?: string }): Promise<{
+export async function getAccountsReadyForRealCampaigns(refreshToken?: string, options?: { useCacheCounts?: boolean; mccId?: string; allowedAccountIds?: Set<string> }): Promise<{
   accountId: string
   campaignCount: number
   totalSpentLast7Days: number // in euros
@@ -203,7 +203,12 @@ export async function getAccountsReadyForRealCampaigns(refreshToken?: string, op
       })
     }
     
-    const accountsWithReadyDummies = Array.from(accountMap.values())
+    let accountsWithReadyDummies = Array.from(accountMap.values())
+    
+    // Optional: limit to MCC-present accounts if provided
+    if (options?.allowedAccountIds && options.allowedAccountIds.size > 0) {
+      accountsWithReadyDummies = accountsWithReadyDummies.filter((a: any) => options.allowedAccountIds!.has(a.accountId))
+    }
     
     // If refreshToken is provided, check for real campaigns and filter out accounts that have them
     if (refreshToken && accountsWithReadyDummies.length > 0) {
@@ -215,7 +220,7 @@ export async function getAccountsReadyForRealCampaigns(refreshToken?: string, op
         const byAccount: Record<string, number> = {}
         cached.forEach(a => { if (typeof a.campaignCount === 'number') byAccount[a.accountId] = a.campaignCount as number })
 
-        const filtered = accountsWithReadyDummies.filter(account => {
+        const filtered = accountsWithReadyDummies.filter((account: any) => {
           const totalCampaigns = byAccount[account.accountId]
           if (typeof totalCampaigns !== 'number') return true // if unknown, keep it for now
           const dummyCount = account.dummyCampaigns.length

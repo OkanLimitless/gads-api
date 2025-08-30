@@ -40,8 +40,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get accounts that are ready for real campaigns based on tracked dummy spend only (no live GAQL)
-    // Do not pass refreshToken here to avoid per-account campaign checks inside this helper
-    readyAccounts = await getAccountsReadyForRealCampaigns(undefined)
+    // Limit to accounts present under the current MCC by passing allowedAccountIds
+    const allowedIds = new Set(clientAccounts.map(acc => acc.id))
+    readyAccounts = await getAccountsReadyForRealCampaigns(undefined, { allowedAccountIds: allowedIds })
     
     // Filter out accounts that are no longer available in the MCC and require ENABLED
     const statusById = new Map(clientAccounts.map((acc: any) => [acc.id, acc.status]))
