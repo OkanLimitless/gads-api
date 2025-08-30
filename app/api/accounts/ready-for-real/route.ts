@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Live evaluation directly on MCC accounts (no Mongo):
     // 1) Start with MCC-present, ENABLED accounts
-    const enabledAccounts = clientAccounts.filter((acc: any) => acc.status === 'ENABLED')
+    const enabledAccounts = clientAccounts.filter((acc: any) => acc.status === 'ENABLED' || acc.status === 2)
     console.log(`ℹ️ Live evaluation: ${enabledAccounts.length} ENABLED accounts`)
 
     // 2) For each account, compute dummy_spend_30d (sum of spend across campaigns with budget <= 20 EUR)
