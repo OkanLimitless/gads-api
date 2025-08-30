@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const updatePerformance = searchParams.get('updatePerformance') === 'true'
+    const updatePerformance = false // disable live updates on GET; use background refresh
     const cleanupStale = searchParams.get('cleanupStale') === 'true'
 
     // Get client accounts from MCC
@@ -28,21 +28,8 @@ export async function GET(request: NextRequest) {
     let performanceUpdated = 0
     let cleanupResult = null
 
-    if (updatePerformance) {
-      console.log('📊 Updating performance data for all accounts...')
-      
-      // Update performance for all client accounts
-      for (const account of clientAccounts) {
-        try {
-          await updateDummyCampaignPerformance(account.id, session.refreshToken)
-          performanceUpdated++
-        } catch (error) {
-          console.error(`💥 Error updating performance for account ${account.id}:`, error)
-        }
-      }
-      
-      console.log(`✅ Updated performance for ${performanceUpdated}/${clientAccounts.length} accounts`)
-    }
+    // Trigger background refresh instead of blocking GET
+    fetch(`/api/cache/dummy/performance/refresh`, { method: 'POST' }).catch(() => {})
 
     // Optional cleanup of stale account data
     if (cleanupStale) {

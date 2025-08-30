@@ -77,8 +77,8 @@ export default function Dashboard() {
     try {
       console.log(`🎯 Fetching accounts ready for real campaigns from MCC: ${mccId}`)
       
-      // Load accounts ready for real campaigns (with performance update)
-      const response = await fetch('/api/accounts/ready-for-real?updatePerformance=true')
+      // Load accounts ready for real campaigns (cached + background refresh)
+      const response = await fetch('/api/accounts/ready-for-real')
       const data = await response.json()
       
       if (response.ok && data.success) {
