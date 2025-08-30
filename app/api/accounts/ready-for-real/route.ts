@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { getAccountsReadyForRealCampaigns, updateDummyCampaignPerformance, cleanupStaleAccountData } from '@/lib/dummy-campaign-tracker'
-import { getClientAccounts } from '@/lib/google-ads-client'
+import { getClientAccounts, getCampaigns } from '@/lib/google-ads-client'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -40,24 +40,66 @@ export async function GET(request: NextRequest) {
     }
 
     // Get accounts that are ready for real campaigns (with real campaign filtering)
-    // Use cache-based filtering to avoid GAQL per-account fetches
-    readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken, { useCacheCounts: true, mccId: knownMCCId })
+    // Start from ready dummy campaigns (precomputed); we'll do precise filtering below
+    readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken, { useCacheCounts: false, mccId: knownMCCId })
     
     // Filter out accounts that are no longer available in the MCC (suspended/removed accounts)
-    // Consider only accounts that exist in current MCC (allow any status for visibility)
+    // Map account statuses and ensure ENABLED only
+    const statusById = new Map(clientAccounts.map((acc: any) => [acc.id, acc.status]))
     const mccIds = new Set(clientAccounts.map(acc => acc.id))
     const availableReadyAccounts = readyAccounts.filter(readyAccount => {
       const inMcc = mccIds.has(readyAccount.accountId)
+      const status = statusById.get(readyAccount.accountId)
+      const isEnabled = status === 'ENABLED' || status === 1
       if (!inMcc) {
         console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not found in MCC (likely suspended/removed)`)      
+      } else if (!isEnabled) {
+        console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not ENABLED status`)
       }
-      return inMcc
+      return inMcc && isEnabled
     })
+
+    // Filter out accounts that already have a real campaign (budget > 20 EUR/day)
+    // We will check non-dummy campaigns only, with concurrency limiting
+    const candidates = availableReadyAccounts
+    const concurrency = 8
+    const queue = [...candidates]
+    const allowList: typeof candidates = []
+    let inFlight = 0
+    const runNext = async (): Promise<void> => {
+      if (queue.length === 0) return
+      if (inFlight >= concurrency) return
+      const account = queue.shift()!
+      inFlight++
+      ;(async () => {
+        try {
+          const allCampaigns = await getCampaigns(account.accountId, session.refreshToken!)
+          const dummyIds = new Set(account.dummyCampaigns.map(dc => dc.campaignId))
+          const hasRealOver20 = allCampaigns.some(c => !dummyIds.has(c.id) && (typeof c.budget === 'number') && c.budget > 20)
+          if (!hasRealOver20) {
+            allowList.push(account)
+          } else {
+            console.log(`❌ Excluding ${account.accountId}: found real campaign > €20/day`)
+          }
+        } catch (e) {
+          // On error, keep the account to avoid false negatives
+          console.warn(`⚠️ Could not check campaigns for ${account.accountId}, allowing by default:`, e instanceof Error ? e.message : String(e))
+          allowList.push(account)
+        } finally {
+          inFlight--
+          await runNext()
+        }
+      })()
+      if (inFlight < concurrency && queue.length > 0) await runNext()
+    }
+    const starters = Math.min(concurrency, queue.length)
+    await Promise.all(new Array(starters).fill(0).map(() => runNext()))
+    while (inFlight > 0) { await new Promise(r => setTimeout(r, 50)) }
     
     console.log(`🔍 Filtered accounts: ${availableReadyAccounts.length}/${readyAccounts.length} accounts are still available in MCC`)
     
     // Enrich with account names from Google Ads
-    const enrichedAccounts = availableReadyAccounts.map(readyAccount => {
+    const enrichedAccounts = allowList.map(readyAccount => {
       const gadsAccount = clientAccounts.find(acc => acc.id === readyAccount.accountId) as any
       return {
         ...readyAccount,
