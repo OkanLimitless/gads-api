@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get accounts that are ready for real campaigns (with real campaign filtering)
-    readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken)
+    // Use cache-based filtering to avoid GAQL per-account fetches
+    readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken, { useCacheCounts: true, mccId: knownMCCId })
     
     // Filter out accounts that are no longer available in the MCC (suspended/removed accounts)
     const availableReadyAccounts = readyAccounts.filter(readyAccount => {

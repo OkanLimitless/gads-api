@@ -148,7 +148,9 @@ export async function updateDummyCampaignPerformance(
 }
 
 // Get accounts that are ready for real campaigns (have high-spending dummy campaigns but NO real campaigns)
-export async function getAccountsReadyForRealCampaigns(refreshToken?: string): Promise<{
+import { getAllFromCache } from './mcc-cache'
+
+export async function getAccountsReadyForRealCampaigns(refreshToken?: string, options?: { useCacheCounts?: boolean; mccId?: string }): Promise<{
   accountId: string
   campaignCount: number
   totalSpentLast7Days: number // in euros
@@ -205,42 +207,49 @@ export async function getAccountsReadyForRealCampaigns(refreshToken?: string): P
     
     // If refreshToken is provided, check for real campaigns and filter out accounts that have them
     if (refreshToken && accountsWithReadyDummies.length > 0) {
-      console.log(`🔍 Checking ${accountsWithReadyDummies.length} accounts for existing real campaigns...`)
-      
-      const accountsWithoutRealCampaigns = []
-      
-      for (const account of accountsWithReadyDummies) {
-        try {
-          // Get all campaigns for this account
-          const allCampaigns = await getCampaigns(account.accountId, refreshToken)
-          
-          // Get dummy campaign IDs for this account
-          const dummyCampaignIds = account.dummyCampaigns.map(dc => dc.campaignId)
-          
-          // Check if there are any campaigns that are NOT dummy campaigns
-          const realCampaigns = allCampaigns.filter(campaign => 
-            !dummyCampaignIds.includes(campaign.id)
-          )
-          
-          account.hasRealCampaigns = realCampaigns.length > 0
-          
-          if (realCampaigns.length === 0) {
-            // No real campaigns found - this account is still eligible
+      if (options?.useCacheCounts) {
+        // Fast path: use cached total campaign counts to infer presence of real campaigns
+        const mccId = options?.mccId || '1284928552'
+        console.log(`🔍 Using cached campaign counts from MCC ${mccId} to filter real campaigns for ${accountsWithReadyDummies.length} accounts...`)
+        const cached = await getAllFromCache(mccId)
+        const byAccount: Record<string, number> = {}
+        cached.forEach(a => { if (typeof a.campaignCount === 'number') byAccount[a.accountId] = a.campaignCount as number })
+
+        const filtered = accountsWithReadyDummies.filter(account => {
+          const totalCampaigns = byAccount[account.accountId]
+          if (typeof totalCampaigns !== 'number') return true // if unknown, keep it for now
+          const dummyCount = account.dummyCampaigns.length
+          const realCount = Math.max(0, totalCampaigns - dummyCount)
+          account.hasRealCampaigns = realCount > 0
+          return realCount === 0
+        })
+
+        console.log(`🎯 Filtered accounts (cache-based): ${filtered.length}/${accountsWithReadyDummies.length} with zero real campaigns`)
+        return filtered
+      } else {
+        console.log(`🔍 Checking ${accountsWithReadyDummies.length} accounts for existing real campaigns (live GAQL)...`)
+        const accountsWithoutRealCampaigns = []
+        for (const account of accountsWithReadyDummies) {
+          try {
+            const allCampaigns = await getCampaigns(account.accountId, refreshToken)
+            const dummyCampaignIds = account.dummyCampaigns.map(dc => dc.campaignId)
+            const realCampaigns = allCampaigns.filter(campaign => !dummyCampaignIds.includes(campaign.id))
+            account.hasRealCampaigns = realCampaigns.length > 0
+            if (realCampaigns.length === 0) {
+              accountsWithoutRealCampaigns.push(account)
+              console.log(`✅ Account ${account.accountId}: Only dummy campaigns found (${dummyCampaignIds.length} dummy, 0 real)`)            
+            } else {
+              console.log(`❌ Account ${account.accountId}: Has real campaigns (${dummyCampaignIds.length} dummy, ${realCampaigns.length} real) - excluded`)
+            }
+          } catch (error) {
+            console.error(`💥 Error checking campaigns for account ${account.accountId}:`, error)
+            // On error, include the account (better to show than hide)
             accountsWithoutRealCampaigns.push(account)
-            console.log(`✅ Account ${account.accountId}: Only dummy campaigns found (${dummyCampaignIds.length} dummy, 0 real)`)
-          } else {
-            // Real campaigns found - exclude this account
-            console.log(`❌ Account ${account.accountId}: Has real campaigns (${dummyCampaignIds.length} dummy, ${realCampaigns.length} real) - excluded`)
           }
-        } catch (error) {
-          console.error(`💥 Error checking campaigns for account ${account.accountId}:`, error)
-          // On error, include the account (better to show than hide)
-          accountsWithoutRealCampaigns.push(account)
         }
+        console.log(`🎯 Filtered accounts (live): ${accountsWithoutRealCampaigns.length}/${accountsWithReadyDummies.length} accounts have only dummy campaigns`)
+        return accountsWithoutRealCampaigns
       }
-      
-      console.log(`🎯 Filtered accounts: ${accountsWithoutRealCampaigns.length}/${accountsWithReadyDummies.length} accounts have only dummy campaigns`)
-      return accountsWithoutRealCampaigns
     }
     
     // If no refreshToken provided, return all accounts with ready dummies (legacy behavior)
