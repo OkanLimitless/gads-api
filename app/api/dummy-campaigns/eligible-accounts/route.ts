@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { GoogleAdsApi } from 'google-ads-api'
 import { getCampaigns, getCampaignCount } from '@/lib/google-ads-client'
+import { getAllFromCache } from '@/lib/mcc-cache'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,111 +42,78 @@ export async function GET(request: NextRequest) {
       refresh_token: session.refreshToken,
     })
 
-    // Query customer clients managed by this MCC
-    const clientsQuery = `
-      SELECT 
-        customer_client.client_customer,
-        customer_client.descriptive_name,
-        customer_client.currency_code,
-        customer_client.time_zone,
-        customer_client.status,
-        customer_client.test_account,
-        customer_client.manager,
-        customer_client.level
-      FROM customer_client
-      WHERE customer_client.level = 1
-      AND customer_client.manager = false
-    `
+    // Prefer cached accounts for speed
+    const cachedAccounts = await getAllFromCache(mccId)
+    let clientAccounts = cachedAccounts
+      .filter(a => !hiddenAccountIds.includes(a.accountId))
+      .map(a => ({
+        id: a.accountId,
+        name: a.name,
+        currency: a.currency || 'USD',
+        timeZone: a.timeZone || 'UTC',
+        status: a.status || 'UNKNOWN',
+        canManageCampaigns: true,
+        testAccount: !!a.testAccount,
+        isManager: false,
+        managerCustomerId: mccId,
+        level: a.level || 1,
+        accountType: 'CLIENT' as const,
+        campaignCount: a.campaignCount,
+      }))
 
-    console.log(`📊 Querying client accounts for MCC ${mccId}...`)
-    const clientsResponse = await mccCustomerClient.query(clientsQuery)
-
-    console.log(`✅ Found ${clientsResponse.length} client accounts`)
-
-    // Transform the response and filter out hidden accounts
-    const clientAccounts = clientsResponse
-      .map((item: any) => {
-        const client = item.customer_client
-        const clientId = client.client_customer?.split('/')[1] || 'unknown'
-        
-        return {
-          id: clientId,
-          name: client.descriptive_name || `Client Account ${clientId}`,
-          currency: client.currency_code || 'USD',
-          timeZone: client.time_zone || 'UTC',
-          status: client.status || 'UNKNOWN',
-          canManageCampaigns: true,
-          testAccount: client.test_account || false,
-          isManager: false,
-          managerCustomerId: mccId,
-          level: client.level || 1,
-          accountType: 'CLIENT' as const,
-        }
-      })
-      .filter(account => !hiddenAccountIds.includes(account.id))
+    if (!clientAccounts || clientAccounts.length === 0) {
+      // Fallback to live query if cache empty
+      const clientsQuery = `
+        SELECT 
+          customer_client.client_customer,
+          customer_client.descriptive_name,
+          customer_client.currency_code,
+          customer_client.time_zone,
+          customer_client.status,
+          customer_client.test_account,
+          customer_client.manager,
+          customer_client.level
+        FROM customer_client
+        WHERE customer_client.level = 1
+        AND customer_client.manager = false
+      `
+      const clientsResponse = await mccCustomerClient.query(clientsQuery)
+      clientAccounts = clientsResponse
+        .map((item: any) => {
+          const client = item.customer_client
+          const clientId = client.client_customer?.split('/')[1] || 'unknown'
+          return {
+            id: clientId,
+            name: client.descriptive_name || `Client Account ${clientId}`,
+            currency: client.currency_code || 'USD',
+            timeZone: client.time_zone || 'UTC',
+            status: client.status || 'UNKNOWN',
+            canManageCampaigns: true,
+            testAccount: client.test_account || false,
+            isManager: false,
+            managerCustomerId: mccId,
+            level: client.level || 1,
+            accountType: 'CLIENT' as const,
+          }
+        })
+        .filter(account => !hiddenAccountIds.includes(account.id))
+    }
 
     console.log(`🔍 Checking campaign counts for ${clientAccounts.length} accounts...`)
 
-    // Check campaign count for each account
-    const eligibleAccounts = []
-    const accountResults = []
-    
+    // Use cached counts if present; otherwise skip to keep it fast and trigger background refresh
+    const eligibleAccounts = [] as any[]
+    const accountResults = [] as any[]
     for (const account of clientAccounts) {
-      try {
-        console.log(`📊 Checking campaigns for account ${account.id} (${account.name})`)
-        
-        // Try the simpler campaign count approach first
-        let campaignCount: number
-        try {
-          campaignCount = await getCampaignCount(account.id, session.refreshToken)
-        } catch (countError) {
-          console.log(`⚠️ Campaign count failed, trying full getCampaigns for ${account.id}`)
-          const campaigns = await getCampaigns(account.id, session.refreshToken)
-          campaignCount = campaigns.length
-        }
-        
-        console.log(`📈 Account ${account.id} has ${campaignCount} campaigns`)
-        
-        const accountResult = {
-          accountId: account.id,
-          accountName: account.name,
-          campaignCount,
-          status: 'success',
-          eligible: campaignCount === 0
-        }
-        accountResults.push(accountResult)
-        
-        if (campaignCount === 0) {
-          eligibleAccounts.push({
-            ...account,
-            campaignCount: 0
-          })
-          console.log(`✅ Account ${account.id} (${account.name}) is eligible - 0 campaigns`)
-        } else {
-          console.log(`❌ Account ${account.id} (${account.name}) not eligible - ${campaignCount} campaigns`)
-        }
-      } catch (error) {
-        console.error(`⚠️ Error checking campaigns for account ${account.id}:`, error)
-        
-        // Log more detailed error information
-        if (error instanceof Error) {
-          console.error(`Error details for ${account.id}: ${error.message}`)
-          console.error(`Error stack: ${error.stack}`)
-        }
-        
-        const accountResult = {
-          accountId: account.id,
-          accountName: account.name,
-          campaignCount: -1,
-          status: 'error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          eligible: false
-        }
-        accountResults.push(accountResult)
-        // Skip accounts we can't access rather than failing the whole request
-        continue
-      }
+      const campaignCount = typeof account.campaignCount === 'number' ? account.campaignCount : undefined
+      if (campaignCount === undefined) continue
+      const ok = campaignCount === 0
+      accountResults.push({ accountId: account.id, accountName: account.name, campaignCount, status: 'cached', eligible: ok })
+      if (ok) eligibleAccounts.push({ ...account, campaignCount: 0 })
     }
+
+    // Fire-and-forget background refresh of counts
+    try { fetch(`/api/cache/mcc/campaign-counts/refresh?mccId=${mccId}`, { method: 'POST' }).catch(() => {}) } catch {}
 
     console.log(`🎯 Found ${eligibleAccounts.length} eligible accounts (0 campaigns) out of ${clientAccounts.length} total accounts`)
     
