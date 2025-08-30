@@ -11,12 +11,24 @@ export const maxDuration = 300
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session || !session.refreshToken) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
+    const url = new URL(request.url)
     const body = await request.json().catch(() => ({}))
-    const mccId: string | undefined = body?.mccId || new URL(request.url).searchParams.get('mccId') || undefined
+    const mccId: string | undefined = body?.mccId || url.searchParams.get('mccId') || undefined
+
+    // Allow Vercel Cron or token-based auth when no session
+    const vercelCronHeader = request.headers.get('x-vercel-cron') || request.headers.get('X-Vercel-Cron')
+    const bearer = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+    const token = body?.token || url.searchParams.get('token') || bearer
+    const cronSecret = process.env.CRON_SECRET
+    const isCronAuthorized = Boolean(vercelCronHeader || (cronSecret && token && token === cronSecret))
+
+    const refreshToken = session?.refreshToken || process.env.GOOGLE_ADS_REFRESH_TOKEN
+    if (!refreshToken) {
+      if (!isCronAuthorized) {
+        return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      }
+      return NextResponse.json({ error: 'Missing GOOGLE_ADS_REFRESH_TOKEN for background refresh' }, { status: 500 })
+    }
     if (!mccId) {
       return NextResponse.json({ error: 'MCC ID is required' }, { status: 400 })
     }
@@ -31,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     const mccCustomerClient = googleAdsClient.Customer({
       customer_id: mccId,
-      refresh_token: session.refreshToken,
+      refresh_token: refreshToken,
     })
 
     const clientsQuery = `

@@ -129,6 +129,10 @@ Visit [http://localhost:3000](http://localhost:3000)
    - `GOOGLE_ADS_CLIENT_ID`
    - `GOOGLE_ADS_CLIENT_SECRET`
    - `GOOGLE_ADS_REFRESH_TOKEN`
+   - `MONGODB_URI`
+   - `NEXTAUTH_URL`
+   - `NEXTAUTH_SECRET`
+   - `CRON_SECRET` (optional; enables token auth for cron refresh endpoints)
 
 3. **Custom Domain:**
    Configure your custom domain in Vercel for production use
