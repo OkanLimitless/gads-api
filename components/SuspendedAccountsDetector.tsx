@@ -102,26 +102,65 @@ export default function SuspendedAccountsDetector({
     setError(null)
 
     try {
-      console.log(`🔍 Detecting suspended accounts for MCC: ${mccId}`)
-      const response = await fetch(`/api/mcc-clients/suspended?mccId=${mccId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+      console.log(`🔍 Reading cached suspended accounts for MCC: ${mccId}`)
+      const getOnce = async () => {
+        const res = await fetch(`/api/cache/mcc/suspended?mccId=${mccId}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        return res.json()
+      }
+
+      let cached = await getOnce()
+
+      // If cache missing or not completed, trigger refresh and poll briefly
+      const needsRefresh = !cached?.meta || cached?.meta?.status !== 'complete' || !Array.isArray(cached?.suspendedAccounts)
+      if (needsRefresh) {
+        console.log('♻️ Triggering background refresh for suspended cache')
+        await fetch(`/api/cache/mcc/suspended/refresh?mccId=${mccId}`, { method: 'POST' })
+        const started = Date.now()
+        const timeoutMs = 60000
+        while (Date.now() - started < timeoutMs) {
+          await new Promise(r => setTimeout(r, 1500))
+          cached = await getOnce()
+          if (cached?.meta?.status === 'complete' && Array.isArray(cached?.suspendedAccounts)) break
+          if (cached?.meta?.status === 'error') break
+        }
+      }
+
+      // Transform cached response to match existing UI shape
+      const suspendedAccounts = (cached?.suspendedAccounts || []).map((a: any) => ({
+        id: a.accountId,
+        name: a.name,
+        currency: a.currency,
+        timeZone: a.timeZone,
+        status: a.status,
+        canManageCampaigns: false,
+        testAccount: !!a.testAccount,
+        isManager: false,
+        managerCustomerId: mccId,
+        level: a.level || 1,
+        accountType: 'CLIENT' as const,
+        isSuspended: !!a.isSuspended,
+        suspensionReason: a.isSuspended ? 'Account Suspended' : 'Account Not Enabled',
+        detectedAt: a.detectedAt || new Date().toISOString(),
+        detectionReason: a.detectionReason || (a.isSuspended ? 'Account Suspended' : 'Status not ENABLED')
+      }))
+
+      const transformed: SuspendedAccountsResponse = {
+        success: true,
+        suspendedAccounts,
+        suspensionDetails: [],
+        toBeDeletedAccounts: [],
+        summary: {
+          totalSuspended: suspendedAccounts.length,
+          suspended: suspendedAccounts.filter((x: any) => x.status === 'SUSPENDED').length,
+          toBeDeleted: 0,
+          detectedAt: new Date().toISOString()
         },
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        mccId,
+        recommendation: suspendedAccounts.length > 0 ? 'Review flagged accounts in Google Ads UI' : 'No flagged accounts detected.'
       }
 
-      const result = await response.json()
-      console.log('✅ Suspended accounts detection result:', result)
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to detect suspended accounts')
-      }
-
-      setData(result)
+      setData(transformed)
     } catch (err) {
       console.error('❌ Error detecting suspended accounts:', err)
       setError(err instanceof Error ? err.message : 'An unknown error occurred')
