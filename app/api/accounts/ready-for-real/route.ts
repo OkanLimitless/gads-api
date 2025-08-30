@@ -44,12 +44,19 @@ export async function GET(request: NextRequest) {
     readyAccounts = await getAccountsReadyForRealCampaigns(session.refreshToken, { useCacheCounts: true, mccId: knownMCCId })
     
     // Filter out accounts that are no longer available in the MCC (suspended/removed accounts)
+    // Consider only accounts that exist in MCC and are ENABLED
+    const enabledAccountIds = new Set(
+      clientAccounts.filter(acc => (acc as any).status === 'ENABLED').map(acc => acc.id)
+    )
     const availableReadyAccounts = readyAccounts.filter(readyAccount => {
-      const isAvailableInMCC = clientAccounts.some(acc => acc.id === readyAccount.accountId)
-      if (!isAvailableInMCC) {
-        console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not found in MCC (likely suspended/removed)`)
+      const inMcc = clientAccounts.some(acc => acc.id === readyAccount.accountId)
+      const isEnabled = enabledAccountIds.has(readyAccount.accountId)
+      if (!inMcc) {
+        console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not found in MCC (likely suspended/removed)`)      
+      } else if (!isEnabled) {
+        console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not ENABLED status`)      
       }
-      return isAvailableInMCC
+      return inMcc && isEnabled
     })
     
     console.log(`🔍 Filtered accounts: ${availableReadyAccounts.length}/${readyAccounts.length} accounts are still available in MCC`)

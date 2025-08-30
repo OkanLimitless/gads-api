@@ -2729,6 +2729,7 @@ export async function getClientAccounts(mccId: string, refreshToken: string): Pr
   currency_code?: string
   time_zone?: string
   testAccount?: boolean
+  status?: string
 }[]> {
   try {
     console.log(`🏢 Fetching client accounts for MCC: ${mccId}`)
@@ -2778,6 +2779,7 @@ export async function getClientAccounts(mccId: string, refreshToken: string): Pr
         currency_code: client.currency_code || 'EUR',
         time_zone: client.time_zone || 'Europe/Amsterdam',
         testAccount: client.test_account || false,
+        status: (client.status as any) || 'UNKNOWN',
       }
     })
 

@@ -94,7 +94,8 @@ export default function Dashboard() {
             totalSpentLast7Days: readyAccount.totalSpentLast7Days,
             campaignCount: readyAccount.campaignCount,
             dummyCampaigns: readyAccount.dummyCampaigns
-          }
+          },
+          status: 'ENABLED'
         }))
         
         console.log(`✅ Found ${transformedAccounts.length} accounts ready for real campaigns`)
