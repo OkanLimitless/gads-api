@@ -43,21 +43,28 @@ export async function GET(request: NextRequest) {
     // Do not pass refreshToken here to avoid per-account campaign checks inside this helper
     readyAccounts = await getAccountsReadyForRealCampaigns(undefined)
     
-    // Filter out accounts that are no longer available in the MCC (suspended/removed accounts)
-    // Map account statuses and ensure ENABLED only
+    // Filter out accounts that are no longer available in the MCC and require ENABLED
     const statusById = new Map(clientAccounts.map((acc: any) => [acc.id, acc.status]))
     const mccIds = new Set(clientAccounts.map(acc => acc.id))
+    let notInMccCount = 0
+    let notEnabledCount = 0
     const availableReadyAccounts = readyAccounts.filter(readyAccount => {
       const inMcc = mccIds.has(readyAccount.accountId)
+      if (!inMcc) { notInMccCount++; return false }
       const status = statusById.get(readyAccount.accountId)
       const isEnabled = status === 'ENABLED' || status === 1
-      if (!inMcc) {
-        console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not found in MCC (likely suspended/removed)`)      
-      } else if (!isEnabled) {
-        console.log(`⚠️ Filtering out account ${readyAccount.accountId}: Not ENABLED status`)
-      }
-      return inMcc && isEnabled
+      if (!isEnabled) { notEnabledCount++; return false }
+      return true
     })
+    console.log(`ℹ️ Filtered out: ${notInMccCount} not in MCC, ${notEnabledCount} not ENABLED`)
+    // Auto-cleanup stale dummy data if too many accounts are no longer present in MCC
+    if (notInMccCount > 50 || notInMccCount > readyAccounts.length * 0.3) {
+      try {
+        const validAccountIds = clientAccounts.map(acc => acc.id)
+        await cleanupStaleAccountData(validAccountIds)
+        console.log('🧹 Auto-cleanup of stale dummy data triggered due to high stale count')
+      } catch {}
+    }
 
     // Prefer cached real-over-20 flag; trigger background refresh if missing
     const candidates = availableReadyAccounts
