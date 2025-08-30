@@ -91,8 +91,8 @@ export default function Dashboard() {
           time_zone: 'Europe/Amsterdam',
           // Add performance data for display
           dummyPerformance: {
-            totalSpentLast7Days: readyAccount.totalSpentLast7Days,
-            campaignCount: readyAccount.campaignCount,
+            totalSpentLast7Days: Number(readyAccount.totalSpentLast7Days || 0),
+            campaignCount: Number(readyAccount.campaignCount || 0),
             dummyCampaigns: readyAccount.dummyCampaigns
           },
           status: 'ENABLED'

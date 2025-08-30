@@ -66,12 +66,17 @@ export async function GET(request: NextRequest) {
           const now = new Date()
           const start = new Date(now)
           start.setDate(now.getDate() - 29)
+          const seven = new Date(now)
+          seven.setDate(now.getDate() - 6)
           const fmt = (d: Date) => d.toISOString().split('T')[0]
           const perf = await getCampaignPerformance(acc.id, session.refreshToken, { startDate: fmt(start), endDate: fmt(now) })
           const allowedCampaignIds = new Set(campaigns.filter(c => (c.budget || 0) <= 20).map(c => c.id))
-          const dummySpend = perf.filter(p => allowedCampaignIds.has(p.campaignId)).reduce((s, row) => s + (row.cost || 0), 0)
+          const dummyRows = perf.filter(p => allowedCampaignIds.has(p.campaignId))
+          const dummySpend30d = dummyRows.reduce((s, row) => s + (row.cost || 0), 0)
+          const dummySpend7d = dummyRows.filter(r => (r.date || '') >= fmt(seven)).reduce((s, row) => s + (row.cost || 0), 0)
+          const dummyCount = allowedCampaignIds.size
 
-          results.push({ accountId: acc.id, accountName: acc.name, dummySpend30d: dummySpend, hasRealOver20 })
+          results.push({ accountId: acc.id, accountName: acc.name, dummySpend30d, hasRealOver20, dummySpend7d, dummyCount })
         } catch (e) {
           // On error, skip this account silently
         } finally {
@@ -95,8 +100,8 @@ export async function GET(request: NextRequest) {
       readyAccounts: ready.map(r => ({
         accountId: r.accountId,
         accountName: r.accountName,
-        totalSpentLast7Days: undefined,
-        campaignCount: undefined,
+        totalSpentLast7Days: r.dummySpend7d ?? 0,
+        campaignCount: r.dummyCount ?? 0,
         dummyCampaigns: [],
         hasRealCampaigns: r.hasRealOver20
       })),
