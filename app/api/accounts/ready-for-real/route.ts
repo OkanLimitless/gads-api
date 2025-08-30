@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { getAccountsReadyForRealCampaigns, updateDummyCampaignPerformance, cleanupStaleAccountData } from '@/lib/dummy-campaign-tracker'
-import { getClientAccounts, getCampaigns } from '@/lib/google-ads-client'
+import { getClientAccounts, getCampaigns, getCampaignPerformance } from '@/lib/google-ads-client'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -39,66 +39,72 @@ export async function GET(request: NextRequest) {
       console.log(`✅ Cleanup completed: removed ${cleanupResult.removedCampaigns} campaigns from ${cleanupResult.affectedAccounts.length} stale accounts`)
     }
 
-    // Get accounts that are ready for real campaigns based on tracked dummy spend only (no live GAQL)
-    // Limit to accounts present under the current MCC by passing allowedAccountIds
-    const allowedIds = new Set(clientAccounts.map(acc => acc.id))
-    readyAccounts = await getAccountsReadyForRealCampaigns(undefined, { allowedAccountIds: allowedIds })
-    
-    // Filter out accounts that are no longer available in the MCC and require ENABLED
-    const statusById = new Map(clientAccounts.map((acc: any) => [acc.id, acc.status]))
-    const mccIds = new Set(clientAccounts.map(acc => acc.id))
-    let notInMccCount = 0
-    let notEnabledCount = 0
-    const availableReadyAccounts = readyAccounts.filter(readyAccount => {
-      const inMcc = mccIds.has(readyAccount.accountId)
-      if (!inMcc) { notInMccCount++; return false }
-      const status = statusById.get(readyAccount.accountId)
-      const isEnabled = status === 'ENABLED' || status === 1
-      if (!isEnabled) { notEnabledCount++; return false }
-      return true
-    })
-    console.log(`ℹ️ Filtered out: ${notInMccCount} not in MCC, ${notEnabledCount} not ENABLED`)
-    // Auto-cleanup stale dummy data if too many accounts are no longer present in MCC
-    if (notInMccCount > 50 || notInMccCount > readyAccounts.length * 0.3) {
-      try {
-        const validAccountIds = clientAccounts.map(acc => acc.id)
-        await cleanupStaleAccountData(validAccountIds)
-        console.log('🧹 Auto-cleanup of stale dummy data triggered due to high stale count')
-      } catch {}
+    // Live evaluation directly on MCC accounts (no Mongo):
+    // 1) Start with MCC-present, ENABLED accounts
+    const enabledAccounts = clientAccounts.filter((acc: any) => acc.status === 'ENABLED')
+    console.log(`ℹ️ Live evaluation: ${enabledAccounts.length} ENABLED accounts`)
+
+    // 2) For each account, compute dummy_spend_30d (sum of spend across campaigns with budget <= 20 EUR)
+    //    and detect any real campaign (> 20 EUR/day)
+    const concurrency = 8
+    const queue = [...enabledAccounts]
+    const results: Array<{ accountId: string; accountName: string; dummySpend30d: number; hasRealOver20: boolean }>
+      = []
+    let inFlight = 0
+    const runNext = async (): Promise<void> => {
+      if (queue.length === 0) return
+      if (inFlight >= concurrency) return
+      const acc = queue.shift()!
+      inFlight++
+      ;(async () => {
+        try {
+          // Real campaign detection
+          const campaigns = await getCampaigns(acc.id, session.refreshToken)
+          const hasRealOver20 = campaigns.some(c => typeof c.budget === 'number' && c.budget > 20)
+
+          // Dummy spend over last 30 days across campaigns with budget <= 20
+          const now = new Date()
+          const start = new Date(now)
+          start.setDate(now.getDate() - 29)
+          const fmt = (d: Date) => d.toISOString().split('T')[0]
+          const perf = await getCampaignPerformance(acc.id, session.refreshToken, { startDate: fmt(start), endDate: fmt(now) })
+          const allowedCampaignIds = new Set(campaigns.filter(c => (c.budget || 0) <= 20).map(c => c.id))
+          const dummySpend = perf.filter(p => allowedCampaignIds.has(p.campaignId)).reduce((s, row) => s + (row.cost || 0), 0)
+
+          results.push({ accountId: acc.id, accountName: acc.name, dummySpend30d: dummySpend, hasRealOver20 })
+        } catch (e) {
+          // On error, skip this account silently
+        } finally {
+          inFlight--
+          await runNext()
+        }
+      })()
+      if (inFlight < concurrency && queue.length > 0) await runNext()
     }
+    const starters = Math.min(concurrency, queue.length)
+    await Promise.all(new Array(starters).fill(0).map(() => runNext()))
+    while (inFlight > 0) { await new Promise(r => setTimeout(r, 25)) }
 
-    // Prefer cached real-over-20 flag; trigger background refresh if missing
-    const candidates = availableReadyAccounts
-    const allowList = candidates.filter(a => (a as any).hasRealCampaignOver20 !== true)
-    // Kick background refresh
-    fetch(`/api/cache/mcc/real-over20/refresh?mccId=${knownMCCId}`, { method: 'POST' }).catch(() => {})
-    
-    console.log(`🔍 Filtered accounts: ${availableReadyAccounts.length}/${readyAccounts.length} accounts are still available in MCC`)
-    
-    // Enrich with account names from Google Ads
-    const enrichedAccounts = allowList.map(readyAccount => {
-      const gadsAccount = clientAccounts.find(acc => acc.id === readyAccount.accountId) as any
-      return {
-        ...readyAccount,
-        accountName: gadsAccount?.name || `Account ${readyAccount.accountId}`,
-        descriptiveName: gadsAccount?.descriptive_name || gadsAccount?.name || `Account ${readyAccount.accountId}`,
-        status: gadsAccount?.status || 'UNKNOWN',
-      }
-    })
+    // 3) Filter for readiness criteria: dummySpend30d >= 10 and no real campaign > 20
+    const ready = results.filter(r => r.dummySpend30d >= 10 && !r.hasRealOver20)
 
-    console.log(`✅ Found ${enrichedAccounts.length} accounts ready for real campaigns`)
+    console.log(`✅ Live ready accounts: ${ready.length}/${enabledAccounts.length}`)
 
     return NextResponse.json({
       success: true,
-      readyAccounts: enrichedAccounts,
-      totalReadyAccounts: enrichedAccounts.length,
-      performanceUpdated: updatePerformance ? performanceUpdated : null,
-      cleanupResult: cleanupStale ? cleanupResult : null,
-      filteredAccounts: readyAccounts.length - availableReadyAccounts.length,
+      readyAccounts: ready.map(r => ({
+        accountId: r.accountId,
+        accountName: r.accountName,
+        totalSpentLast7Days: undefined,
+        campaignCount: undefined,
+        dummyCampaigns: [],
+        hasRealCampaigns: r.hasRealOver20
+      })),
+      totalReadyAccounts: ready.length,
       criteria: {
         minimumSpend: '€10.00',
-        timeframe: '7 days',
-        description: 'Accounts with dummy campaigns that have spent over €10 in the last 7 days AND have no real campaigns deployed yet'
+        timeframe: '30 days',
+        description: 'ENABLED accounts with <= €20/day campaigns spending ≥ €10 in last 30 days and no campaign > €20/day'
       }
     })
 
