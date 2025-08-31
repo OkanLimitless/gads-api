@@ -508,6 +508,23 @@ export default function Dashboard() {
                           </CardContent>
                         </Card>
 
+                        {/* Spend Explorer */}
+                        <Card className="border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-indigo-900 mb-1">Spend Explorer</h4>
+                                <p className="text-sm text-indigo-700">See ENABLED accounts with spend in a range (e.g., €1–€100)</p>
+                              </div>
+                              <Link href="/spend">
+                                <Button variant="outline" className="border-indigo-300 text-indigo-700 hover:bg-indigo-100">
+                                  View Spend
+                                </Button>
+                              </Link>
+                            </div>
+                          </CardContent>
+                        </Card>
+
                         {/* Create Account (API) */}
                         <Card className="border-green-200 bg-green-50 hover:bg-green-100 transition-colors">
                           <CardContent className="p-4">
