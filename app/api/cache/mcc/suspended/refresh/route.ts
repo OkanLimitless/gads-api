@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../../auth/[...nextauth]/route'
 import { GoogleAdsApi } from 'google-ads-api'
-import { upsertAccounts, setMeta, HIDDEN_ACCOUNT_IDS } from '@/lib/mcc-cache'
+import { replaceAccounts, setMeta, HIDDEN_ACCOUNT_IDS } from '@/lib/mcc-cache'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     })
 
     const filteredRows = cachedRows.filter(r => !HIDDEN_ACCOUNT_IDS.includes(r.accountId))
-    await upsertAccounts(mccId, filteredRows)
+    await replaceAccounts(mccId, filteredRows)
 
     const counts = {
       total: filteredRows.length,

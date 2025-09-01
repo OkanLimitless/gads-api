@@ -112,7 +112,11 @@ export default function SuspendedAccountsDetector({
       let cached = await getOnce()
 
       // If cache missing or not completed, trigger refresh and poll briefly
-      const needsRefresh = !cached?.meta || cached?.meta?.status !== 'complete' || !Array.isArray(cached?.suspendedAccounts)
+      const completedAtIso: string | undefined = cached?.meta?.completedAt
+      const completedAtMs = completedAtIso ? Date.parse(completedAtIso) : 0
+      const thirtyMinutesMs = 30 * 60 * 1000
+      const isStale = completedAtMs > 0 ? (Date.now() - completedAtMs) > thirtyMinutesMs : true
+      const needsRefresh = !cached?.meta || cached?.meta?.status !== 'complete' || !Array.isArray(cached?.suspendedAccounts) || isStale
       if (needsRefresh) {
         console.log('♻️ Triggering background refresh for suspended cache')
         await fetch(`/api/cache/mcc/suspended/refresh?mccId=${mccId}`, { method: 'POST' })

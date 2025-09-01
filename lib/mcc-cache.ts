@@ -62,6 +62,31 @@ export async function upsertAccounts(mccId: string, rows: CachedAccount[]) {
 	await accounts.bulkWrite(ops, { ordered: false })
 }
 
+export async function replaceAccounts(mccId: string, rows: CachedAccount[]) {
+	const { accounts } = await getCollections()
+
+	// Upsert provided rows first (if any)
+	if (rows && rows.length > 0) {
+		const ops = rows.map(r => ({
+			updateOne: {
+				filter: { mccId, accountId: r.accountId },
+				update: { $set: { ...r, mccId } },
+				upsert: true,
+			},
+		}))
+		await accounts.bulkWrite(ops, { ordered: false })
+	}
+
+	// Remove any cached accounts for this MCC that are not present in the latest snapshot
+	const keepIds = new Set((rows || []).map(r => r.accountId))
+	if (keepIds.size === 0) {
+		// If no rows were returned, clear all cached accounts for this MCC
+		await accounts.deleteMany({ mccId })
+		return
+	}
+	await accounts.deleteMany({ mccId, accountId: { $nin: Array.from(keepIds) } })
+}
+
 export async function setMeta(mccId: string, type: CacheMeta['type'], meta: Partial<CacheMeta>) {
 	const { meta: metaCol } = await getCollections()
 	await metaCol.updateOne(
