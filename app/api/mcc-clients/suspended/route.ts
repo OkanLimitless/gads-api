@@ -254,7 +254,7 @@ export async function GET(request: NextRequest) {
         })
         const todayCost = perfToday.reduce((sum, row) => sum + (row.cost || 0), 0)
 
-        if (totalCostLast30 > 200 && yesterdayCost === 0 && todayCost === 0) {
+        if (totalCostLast30 > 50 && yesterdayCost === 0 && todayCost === 0) {
           toBeDeletedAccounts.push({
             id: account.id,
             name: account.name,

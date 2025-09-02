@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -79,6 +80,7 @@ export default function SuspendedAccountsDetector({
   const [error, setError] = useState<string | null>(null)
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
   const [selectedToDelete, setSelectedToDelete] = useState<Set<string>>(new Set())
+  const [toBeDeletedRaw, setToBeDeletedRaw] = useState<Array<{ id: string; amount: number }>>([])
 
   const buildPreferencesLink = (customerId: string) => {
     const cleanCid = (customerId || '').replace(/[^0-9]/g, '')
@@ -165,6 +167,26 @@ export default function SuspendedAccountsDetector({
       }
 
       setData(transformed)
+      setToBeDeletedRaw([])
+
+      // Fetch live to-be-deleted accounts (spend>50 last 30d; 0 yesterday & today)
+      try {
+        const liveRes = await fetch(`/api/mcc-clients/suspended?mccId=${mccId}`)
+        if (liveRes.ok) {
+          const live = await liveRes.json()
+          setData(prev => prev ? {
+            ...prev,
+            toBeDeletedAccounts: Array.isArray(live?.toBeDeletedAccounts) ? live.toBeDeletedAccounts : [],
+            summary: {
+              ...prev.summary,
+              toBeDeleted: Array.isArray(live?.toBeDeletedAccounts) ? live.toBeDeletedAccounts.length : 0,
+              detectedAt: new Date().toISOString(),
+            }
+          } : prev)
+        }
+      } catch (e) {
+        // Ignore live fetch errors; UI already shows suspended list
+      }
     } catch (err) {
       console.error('❌ Error detecting suspended accounts:', err)
       setError(err instanceof Error ? err.message : 'An unknown error occurred')
@@ -316,19 +338,47 @@ export default function SuspendedAccountsDetector({
         </CardContent>
       </Card>
 
-      {/* To Be Deleted simple list (spend>200 last 30d; 0 spend last 2 days) */}
+      {/* To Be Deleted simple list (spend>50 last 30d; 0 spend last 2 days) */}
       <Card>
         <CardHeader>
           <CardTitle>To-Be-Deleted Account IDs</CardTitle>
-          <CardDescription>Spent over 200 in last 30 days, zero spend yesterday and today</CardDescription>
+          <CardDescription>Spent over 50 in last 30 days, zero spend yesterday and today</CardDescription>
         </CardHeader>
         <CardContent>
           {data.toBeDeletedAccounts.length > 0 ? (
-            <textarea
-              className="w-full h-48 p-3 border rounded font-mono text-sm"
-              readOnly
-              value={data.toBeDeletedAccounts.map(acc => acc.id).join('\n')}
-            />
+            <Tabs defaultValue="ids">
+              <TabsList>
+                <TabsTrigger value="ids">IDs</TabsTrigger>
+                <TabsTrigger value="sheet">Sheet</TabsTrigger>
+              </TabsList>
+              <TabsContent value="ids">
+                <textarea
+                  className="w-full h-48 p-3 border rounded font-mono text-sm"
+                  readOnly
+                  value={data.toBeDeletedAccounts.map(acc => acc.id).join('\n')}
+                />
+              </TabsContent>
+              <TabsContent value="sheet">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs text-gray-600 mb-2">Account IDs</div>
+                    <textarea
+                      className="w-full h-48 p-3 border rounded font-mono text-sm"
+                      readOnly
+                      value={data.toBeDeletedAccounts.map(acc => acc.id).join('\n')}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600 mb-2">Amount Spent (last 30 days)</div>
+                    <textarea
+                      className="w-full h-48 p-3 border rounded font-mono text-sm"
+                      readOnly
+                      value={data.toBeDeletedAccounts.map(acc => `${Number(acc.last30DaysCost || 0).toFixed(2)}`).join('\n')}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           ) : (
             <div className="text-sm text-gray-600">No accounts matched the to-be-deleted criteria.</div>
           )}
