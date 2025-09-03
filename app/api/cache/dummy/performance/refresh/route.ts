@@ -53,12 +53,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Build candidate list, skipping accounts that are already ready or checked recently
+    const col = await getDummyCampaignTrackingCollection()
     const accountIds = onlyAccounts && onlyAccounts.length > 0 ? onlyAccounts : await getDistinctAccountIds()
-    if (accountIds.length === 0) return NextResponse.json({ success: true, updated: 0 })
+    const now = Date.now()
+    const twelveHoursMs = 12 * 60 * 60 * 1000
+    const readyOrFresh = await col.aggregate([
+      { $match: { accountId: { $in: accountIds } } },
+      { $group: { _id: '$accountId', isReadyForReal: { $max: { $toBool: '$isReadyForReal' } }, lastChecked: { $max: '$lastChecked' } } }
+    ]).toArray()
+    const skip = new Set<string>()
+    for (const row of readyOrFresh) {
+      if (row.isReadyForReal) { skip.add(row._id) ; continue }
+      const ts = row.lastChecked ? Date.parse(row.lastChecked) : 0
+      if (ts && (now - ts) < twelveHoursMs) skip.add(row._id)
+    }
+    const toProcess = accountIds.filter(id => !skip.has(id))
+    if (toProcess.length === 0) return NextResponse.json({ success: true, updated: 0, skipped: skip.size })
 
     let inFlight = 0
     let updated = 0
-    const queue = [...accountIds]
+    const queue = [...toProcess]
     const results: Array<{ accountId: string; ok: boolean; error?: string }> = []
 
     const runNext = async (): Promise<void> => {
@@ -87,7 +102,7 @@ export async function POST(request: NextRequest) {
       await new Promise(r => setTimeout(r, 200))
     }
 
-    return NextResponse.json({ success: true, updated, total: accountIds.length, results: results.slice(0, 20) })
+    return NextResponse.json({ success: true, updated, total: toProcess.length, skipped: skip.size, results: results.slice(0, 20) })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message || 'Failed to refresh dummy performance' }, { status: 500 })
   }

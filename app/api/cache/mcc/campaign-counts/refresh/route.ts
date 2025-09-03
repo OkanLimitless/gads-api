@@ -32,13 +32,22 @@ export async function POST(request: NextRequest) {
     const accounts = await getAllFromCache(mccId)
     if (!accounts || accounts.length === 0) return NextResponse.json({ success: true, updated: 0 })
 
+    // Skip accounts updated within the last 24h
+    const now = Date.now()
+    const twentyFourHoursMs = 24 * 60 * 60 * 1000
+    const stale = accounts.filter(a => {
+      const ts = a.campaignCountUpdatedAt ? Date.parse(a.campaignCountUpdatedAt) : 0
+      return !ts || (now - ts) > twentyFourHoursMs
+    })
+    if (stale.length === 0) return NextResponse.json({ success: true, updated: 0, skipped: accounts.length })
+
     const googleAdsClient = new GoogleAdsApi({
       client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
       client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
       developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
     })
 
-    const queue = [...accounts]
+    const queue = [...stale]
     let inFlight = 0
     let updated = 0
     const results: any[] = []
