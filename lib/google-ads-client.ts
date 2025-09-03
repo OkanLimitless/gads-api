@@ -658,7 +658,8 @@ export async function createCampaign(
     // Prepare campaign resource
     // Append today's date to campaign name
     const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-    const campaignNameWithDate = `${campaignData.name} - ${today}`
+    const uniqueSuffix = `${Date.now().toString().slice(-6)}${Math.random().toString(36).slice(2,6).toUpperCase()}`
+    const campaignNameWithDate = `${campaignData.name} - ${today} - ${uniqueSuffix}`
     
     const campaignResource = {
       name: campaignNameWithDate,
@@ -1525,7 +1526,8 @@ export async function createCallOnlyCampaign(
     // Prepare atomic budget + campaign create
     const budgetResourceName = ResourceNames.campaignBudget(customerId, "-1")
     const today = new Date().toISOString().split('T')[0]
-    const campaignNameWithDate = `${campaignData.name} - ${today}`
+    const uniqueSuffix = `${Date.now().toString().slice(-6)}${Math.random().toString(36).slice(2,6).toUpperCase()}`
+    const campaignNameWithDate = `${campaignData.name} - ${today} - ${uniqueSuffix}`
 
     const campaignResource: any = {
       name: campaignNameWithDate,
@@ -2260,7 +2262,8 @@ export async function createDummyCampaign(
     
     // Append today's date to campaign name (consistent with regular campaigns)
     const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-    const campaignNameWithDate = `${templateData.name} - ${today}`
+    const uniqueSuffix = `${Date.now().toString().slice(-6)}${Math.random().toString(36).slice(2,6).toUpperCase()}`
+    const campaignNameWithDate = `${templateData.name} - ${today} - ${uniqueSuffix}`
     
     // Use MCC account as login customer for client account access
     const knownMCCId = '1284928552'
