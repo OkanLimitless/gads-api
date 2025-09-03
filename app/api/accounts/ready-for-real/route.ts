@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     // 2) For each account, compute dummy_spend_30d (sum of spend across campaigns with budget <= 20 EUR)
     //    and detect any real campaign (> 20 EUR/day)
-    const concurrency = 8
+    const concurrency = 3
     const queue = [...enabledAccounts]
     const results: Array<{ accountId: string; accountName: string; dummySpend30d: number; hasRealOver20: boolean }>
       = []

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({ error: 'Missing GOOGLE_ADS_REFRESH_TOKEN for background refresh' }, { status: 500 })
     }
-    const limit = Math.max(1, Math.min(10, Number(body?.concurrency) || 6))
+    const limit = Math.max(1, Math.min(5, Number(body?.concurrency) || 3))
     if (!mccId) return NextResponse.json({ error: 'MCC ID is required' }, { status: 400 })
 
     const accounts = await getAllFromCache(mccId)
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
             refresh_token: refreshToken!,
             login_customer_id: mccId,
           })
-          const rows = await customer.query(`SELECT campaign.id FROM campaign LIMIT 1000`)
+          const rows = await customer.query(`SELECT campaign.id FROM campaign LIMIT 500`)
           const campaignCount = Array.isArray(rows) ? rows.length : 0
           const now = new Date().toISOString()
           await upsertAccounts(mccId, [{ ...acc, campaignCount, campaignCountUpdatedAt: now }])

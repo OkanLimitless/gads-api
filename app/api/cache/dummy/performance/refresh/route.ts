@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const onlyAccounts: string[] | undefined = Array.isArray(body?.accountIds) ? body.accountIds : undefined
-    const concurrency = Math.max(1, Math.min(10, Number(body?.concurrency) || 6))
+    const concurrency = Math.max(1, Math.min(5, Number(body?.concurrency) || 3))
     const doCleanup = (body?.cleanupStale ?? url.searchParams.get('cleanupStale')) === true || url.searchParams.get('cleanupStale') === 'true'
 
     // Optional cleanup of stale tracked data based on current MCC clients

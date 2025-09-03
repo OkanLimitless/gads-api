@@ -167,6 +167,28 @@ export interface Campaign {
   campaignType: string
 }
 
+async function withBackoff<T>(fn: () => Promise<T>, options?: { retries?: number; baseMs?: number; onRetry?: (err: any, attempt: number, waitMs: number) => void }): Promise<T> {
+  const maxRetries = Math.max(0, options?.retries ?? 4)
+  const base = Math.max(1000, options?.baseMs ?? 2000)
+  let attempt = 0
+  let lastErr: any
+  while (attempt <= maxRetries) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      lastErr = err
+      const message = typeof err?.message === 'string' ? err.message : String(err)
+      const isRate = /Too many requests|RESOURCE_EXHAUSTED|rate/i.test(message)
+      if (attempt === maxRetries || !isRate) throw err
+      const waitMs = base * Math.pow(2, attempt) + Math.floor(Math.random() * 500)
+      options?.onRetry?.(err, attempt + 1, waitMs)
+      await new Promise(r => setTimeout(r, waitMs))
+      attempt++
+    }
+  }
+  throw lastErr
+}
+
 export interface CampaignPerformance {
   campaignId: string
   campaignName: string
@@ -1938,7 +1960,7 @@ export async function getCampaigns(customerId: string, refreshToken: string): Pr
     `
 
     console.log(`📊 Executing GAQL query for customer ${customerId}`)
-    const campaigns = await customer.query(query)
+    const campaigns = await withBackoff(() => customer.query(query), { onRetry: (e,a,w) => console.warn(`getCampaigns backoff attempt ${a}, wait ${w}ms`) })
     
     console.log(`✅ Found ${campaigns.length} campaigns for customer ${customerId}`)
 
@@ -1984,7 +2006,7 @@ export async function getCampaignPerformance(
       login_customer_id: knownMCCId, // Required for accessing client accounts
     })
 
-    const report = await customer.report({
+    const report = await withBackoff(() => customer.report({
       entity: 'campaign',
       attributes: [
         'campaign.id',
@@ -2003,7 +2025,7 @@ export async function getCampaignPerformance(
       segments: ['segments.date'],
       from_date: dateRange.startDate,
       to_date: dateRange.endDate,
-    })
+    }), { onRetry: (e,a,w) => console.warn(`getCampaignPerformance backoff attempt ${a}, wait ${w}ms`) })
 
     return report.map((row: any) => ({
       campaignId: row.campaign?.id?.toString() || '',
