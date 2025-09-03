@@ -1308,6 +1308,24 @@ export async function createCampaign(
           }
         }))
       }
+      else if (campaignData.adScheduleTemplateId === 'nine_to_five') {
+        console.log('🏢 Using 9-5 Business Hours (Monday-Friday)')
+        const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
+        adScheduleOperations = daysOfWeek.map(day => ({
+          entity: "campaign_criterion",
+          operation: "create",
+          resource: {
+            campaign: campaignResourceName,
+            ad_schedule: {
+              day_of_week: enums.DayOfWeek[day as keyof typeof enums.DayOfWeek],
+              start_hour: 9,
+              start_minute: enums.MinuteOfHour.ZERO,
+              end_hour: 17,
+              end_minute: enums.MinuteOfHour.ZERO
+            }
+          }
+        }))
+      }
       // Handle custom templates
       else if (campaignData.adScheduleTemplate && campaignData.adScheduleTemplate.schedule.length > 0) {
         console.log('📋 Using custom ad schedule template')

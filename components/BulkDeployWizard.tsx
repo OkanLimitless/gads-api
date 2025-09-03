@@ -206,6 +206,7 @@ export default function BulkDeployWizard({ readyAccounts, onBack }: BulkDeployWi
                   <SelectItem value="est_business_hours">EST Business Hours</SelectItem>
                   <SelectItem value="amsterdam_evening_rush">Amsterdam Evening Rush</SelectItem>
                   <SelectItem value="energie">Energie (10:00-20:30 Mon-Fri)</SelectItem>
+                  <SelectItem value="nine_to_five">9-5 Business Hours (Mon-Fri)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
