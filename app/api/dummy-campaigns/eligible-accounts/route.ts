@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import { GoogleAdsApi } from 'google-ads-api'
 import { getCampaigns, getCampaignCount } from '@/lib/google-ads-client'
+import { getDummyCampaignTrackingCollection } from '@/lib/mongodb'
 import { getAllFromCache, HIDDEN_ACCOUNT_IDS } from '@/lib/mcc-cache'
 
 export const runtime = 'nodejs'
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
         level: a.level || 1,
         accountType: 'CLIENT' as const,
         campaignCount: a.campaignCount,
+        campaignCountUpdatedAt: a.campaignCountUpdatedAt,
       }))
 
     if (!clientAccounts || clientAccounts.length === 0) {
@@ -101,16 +103,41 @@ export async function GET(request: NextRequest) {
 
     console.log(`🔍 Using cached campaign counts for ${clientAccounts.length} accounts (will refresh in background)...`)
 
+    // Exclude accounts that already have a tracked dummy campaign
+    const dummyCol = await getDummyCampaignTrackingCollection()
+    const accountsWithDummyArr = await dummyCol.distinct('accountId')
+    const accountsWithDummy = new Set<string>(accountsWithDummyArr as string[])
+    console.log(`🚫 Excluding ${accountsWithDummy.size} accounts that already have a dummy campaign (tracked)`)    
+
     // Use cached counts if present; otherwise skip to keep it fast and trigger background refresh
     const eligibleAccounts = [] as any[]
     const accountResults = [] as any[]
     const withCounts = clientAccounts.filter(a => typeof a.campaignCount === 'number')
     const withoutCounts = clientAccounts.filter(a => typeof a.campaignCount !== 'number')
 
+    const sixHoursMs = 6 * 60 * 60 * 1000
     for (const account of withCounts) {
       const campaignCount = account.campaignCount as number
-      const ok = campaignCount === 0
-      accountResults.push({ accountId: account.id, accountName: account.name, campaignCount, status: 'cached', eligible: ok })
+      const updatedAt = account.campaignCountUpdatedAt ? Date.parse(account.campaignCountUpdatedAt as string) : 0
+      const isStale = !updatedAt || (Date.now() - updatedAt) > sixHoursMs
+      const hasDummy = accountsWithDummy.has(account.id)
+
+      let ok = campaignCount === 0 && !hasDummy
+
+      if (ok && isStale) {
+        try {
+          const liveCount = await getCampaignCount(account.id, session.refreshToken)
+          const liveOk = liveCount === 0 && !hasDummy
+          accountResults.push({ accountId: account.id, accountName: account.name, campaignCount: liveCount, status: 'live-verified', eligible: liveOk, staleCached: true })
+          if (liveOk) eligibleAccounts.push({ ...account, campaignCount: liveCount })
+          continue
+        } catch (e) {
+          accountResults.push({ accountId: account.id, accountName: account.name, campaignCount: -1, status: 'error', eligible: false, error: e instanceof Error ? e.message : String(e) })
+          continue
+        }
+      }
+
+      accountResults.push({ accountId: account.id, accountName: account.name, campaignCount, status: 'cached', eligible: ok, hasDummy })
       if (ok) eligibleAccounts.push({ ...account, campaignCount })
     }
 
@@ -129,8 +156,9 @@ export async function GET(request: NextRequest) {
         ;(async () => {
           try {
             const count = await getCampaignCount(acc.id, session.refreshToken)
-            const ok = count === 0
-            accountResults.push({ accountId: acc.id, accountName: acc.name, campaignCount: count, status: 'live', eligible: ok })
+            const hasDummy = accountsWithDummy.has(acc.id)
+            const ok = count === 0 && !hasDummy
+            accountResults.push({ accountId: acc.id, accountName: acc.name, campaignCount: count, status: 'live', eligible: ok, hasDummy })
             if (ok) eligibleAccounts.push({ ...acc, campaignCount: 0 })
           } catch (e) {
             accountResults.push({ accountId: acc.id, accountName: acc.name, campaignCount: -1, status: 'error', eligible: false, error: e instanceof Error ? e.message : String(e) })
