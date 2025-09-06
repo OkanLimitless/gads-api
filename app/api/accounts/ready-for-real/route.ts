@@ -39,42 +39,24 @@ export async function GET(request: NextRequest) {
       console.log(`✅ Cleanup completed: removed ${cleanupResult.removedCampaigns} campaigns from ${cleanupResult.affectedAccounts.length} stale accounts`)
     }
 
-    // Cache-first evaluation: start with cached campaign counts and dummy tracking, and only fall back to live for unknowns
+    // Cache-first evaluation: start with cached campaign counts and dummy tracking, then augment with live evaluation
     // 1) Start with MCC-present, ENABLED accounts
     const enabledAccounts = clientAccounts.filter((acc: any) => acc.status === 'ENABLED' || acc.status === 2)
     console.log(`ℹ️ Live evaluation: ${enabledAccounts.length} ENABLED accounts`)
 
-    // 2) Use cache-first: filter accounts that have cached counts and dummy readiness
+    // 2) Use cache-first: filter accounts that have cached counts and dummy readiness, and exclude those with real campaigns using cache
     const { getAccountsReadyForRealCampaigns } = await import('@/lib/dummy-campaign-tracker')
-    const readyFromDummy = await getAccountsReadyForRealCampaigns(undefined, { allowedAccountIds: new Set(enabledAccounts.map(a => a.id)) })
+    const readyFromDummy = await getAccountsReadyForRealCampaigns(
+      session.refreshToken,
+      { useCacheCounts: true, mccId: knownMCCId, allowedAccountIds: new Set(enabledAccounts.map(a => a.id)) }
+    )
     const readyIds = new Set(readyFromDummy.map(a => a.accountId))
-
-    // Fast-return if ready accounts exist
-    if (readyFromDummy.length > 0) {
-      return NextResponse.json({
-        success: true,
-        readyAccounts: readyFromDummy.map(r => ({
-          accountId: r.accountId,
-          accountName: clientAccounts.find(a => a.id === r.accountId)?.name || r.accountId,
-          totalSpentLast7Days: r.totalSpentLast7Days,
-          campaignCount: r.campaignCount,
-          dummyCampaigns: r.dummyCampaigns,
-          hasRealCampaigns: false
-        })),
-        totalReadyAccounts: readyFromDummy.length,
-        criteria: {
-          minimumSpend: '€10.00',
-          timeframe: '30 days',
-          description: 'Cache-first: dummy spend readiness and zero real campaigns inferred from cache'
-        }
-      })
-    }
 
     // Fallback: Live evaluation only for accounts not already ready
     const candidates = enabledAccounts.filter(a => !readyIds.has(a.id))
     const concurrency = 3
     const queue = [...candidates]
-    const results: Array<{ accountId: string; accountName: string; dummySpend30d: number; hasRealOver20: boolean }>
+    const results: Array<{ accountId: string; accountName: string; dummySpend30d: number; dummySpend7d: number; dummyCount: number; hasRealOver20: boolean }>
       = []
     let inFlight = 0
     const runNext = async (): Promise<void> => {
@@ -102,7 +84,7 @@ export async function GET(request: NextRequest) {
           const dummySpend7d = dummyRows.filter(r => (r.date || '') >= fmt(seven)).reduce((s, row) => s + (row.cost || 0), 0)
           const dummyCount = allowedCampaignIds.size
 
-          results.push({ accountId: acc.id, accountName: acc.name, dummySpend30d, hasRealOver20, dummySpend7d, dummyCount })
+          results.push({ accountId: acc.id, accountName: acc.name, dummySpend30d, dummySpend7d, dummyCount, hasRealOver20 })
         } catch (e) {
           // On error, skip this account silently
         } finally {
@@ -117,25 +99,47 @@ export async function GET(request: NextRequest) {
     while (inFlight > 0) { await new Promise(r => setTimeout(r, 25)) }
 
     // 3) Filter for readiness criteria: dummySpend30d >= 10 and no real campaign > 20
-    const ready = results.filter(r => r.dummySpend30d >= 10 && !r.hasRealOver20)
+    const readyLive = results.filter(r => r.dummySpend30d >= 10 && !r.hasRealOver20)
 
-    console.log(`✅ Live ready accounts: ${ready.length}/${candidates.length}`)
+    console.log(`✅ Live ready accounts: ${readyLive.length}/${candidates.length}`)
+
+    // 4) Combine cache-ready and live-ready (dedupe by accountId)
+    const readyCombinedMap: Record<string, { accountId: string; accountName: string; totalSpentLast7Days: number; campaignCount: number; dummyCampaigns: any[]; hasRealCampaigns: boolean }> = {}
+
+    for (const r of readyFromDummy) {
+      readyCombinedMap[r.accountId] = {
+        accountId: r.accountId,
+        accountName: clientAccounts.find(a => a.id === r.accountId)?.name || r.accountId,
+        totalSpentLast7Days: r.totalSpentLast7Days,
+        campaignCount: r.campaignCount,
+        dummyCampaigns: r.dummyCampaigns,
+        hasRealCampaigns: Boolean(r.hasRealCampaigns)
+      }
+    }
+
+    for (const r of readyLive) {
+      if (!readyCombinedMap[r.accountId]) {
+        readyCombinedMap[r.accountId] = {
+          accountId: r.accountId,
+          accountName: r.accountName,
+          totalSpentLast7Days: r.dummySpend7d ?? 0,
+          campaignCount: r.dummyCount ?? 0,
+          dummyCampaigns: [],
+          hasRealCampaigns: r.hasRealOver20
+        }
+      }
+    }
+
+    const readyCombined = Object.values(readyCombinedMap)
 
     return NextResponse.json({
       success: true,
-      readyAccounts: ready.map(r => ({
-        accountId: r.accountId,
-        accountName: r.accountName,
-        totalSpentLast7Days: r.dummySpend7d ?? 0,
-        campaignCount: r.dummyCount ?? 0,
-        dummyCampaigns: [],
-        hasRealCampaigns: r.hasRealOver20
-      })),
-      totalReadyAccounts: ready.length,
+      readyAccounts: readyCombined,
+      totalReadyAccounts: readyCombined.length,
       criteria: {
         minimumSpend: '€10.00',
         timeframe: '30 days',
-        description: 'ENABLED accounts with <= €20/day campaigns spending ≥ €10 in last 30 days and no campaign > €20/day'
+        description: 'Cache-first readiness plus live evaluation; excludes accounts with > €20/day real campaigns'
       }
     })
 
